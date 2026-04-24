@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GDAK — Tasks</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">G</span>
+      <span class="logo-text">GDAK</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor"/><rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" opacity=".4"/></svg>
+        <span>My Tasks</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="workspace-chip">
+        <span class="ws-dot"></span>
+        <span>Workspace</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Header -->
+    <header class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">My Tasks</h1>
+        <span class="workspace-label">GDAK</span>
+      </div>
+      <div class="header-right">
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <span class="filter-label">Sort:</span>
+          <button class="sort-btn active" data-sort="none">Default</button>
+          <button class="sort-btn" data-sort="priority" data-dir="desc">Priority <span class="sort-arrow">↓</span></button>
+          <button class="sort-btn" data-sort="due" data-dir="asc">Due Date <span class="sort-arrow">↑</span></button>
+          <button class="sort-btn" data-sort="tag" data-dir="asc">Tag <span class="sort-arrow">↑</span></button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Task lists container -->
+    <div class="lists-container" id="listsContainer">
+      <!-- Sections rendered by JS -->
+    </div>
+
+
+
+  </main>
+
+  <!-- Context menu -->
+  <div class="context-menu" id="contextMenu" style="display:none">
+    <div class="context-menu-header">Set Status</div>
+    <div class="context-item" data-status="todo"><span class="status-dot todo"></span>To Do</div>
+    <div class="context-item" data-status="planned"><span class="status-dot planned"></span>Planned</div>
+    <div class="context-item" data-status="inprogress"><span class="status-dot inprogress"></span>In Progress</div>
+    <div class="context-item" data-status="updatereq"><span class="status-dot updatereq"></span>Update Required</div>
+    <div class="context-item" data-status="onhold"><span class="status-dot onhold"></span>On Hold</div>
+    <div class="context-item" data-status="complete"><span class="status-dot complete"></span>Complete</div>
+    <div class="context-item" data-status="canceled"><span class="status-dot canceled"></span>Canceled</div>
+    <div class="context-divider"></div>
+    <div class="context-item context-delete" id="contextDelete">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M5 3.5V2h4v1.5M5.5 6v4.5M8.5 6v4.5M3 3.5l.5 8h7l.5-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Delete Task
+    </div>
+  </div>
+
+  <!-- Overlay for closing dropdowns -->
+  <div class="overlay" id="overlay" style="display:none"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
