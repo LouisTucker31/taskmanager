@@ -1,5 +1,5 @@
 /* =============================================
-   GDAK Task Manager — app.js
+   Task Manager — app.js
    ============================================= */
 
 // ---- DATA MODEL ----
@@ -1085,3 +1085,90 @@ loadTasks();
 loadExpanded();
 loadTagColors();
 render();
+// ---- BOARD VIEW ----
+
+function renderBoard() {
+  const container = document.getElementById('boardColumns');
+  container.innerHTML = '';
+
+  STATUSES.forEach(status => {
+    const colTasks = tasks.filter(t => t.status === status.key);
+
+    const col = document.createElement('div');
+    col.className = 'board-col';
+    col.dataset.status = status.key;
+
+    // Column header
+    const header = document.createElement('div');
+    header.className = 'board-col-header';
+    header.innerHTML = `
+      <span class="status-badge badge-${status.key}">
+        <span class="badge-dot"></span>${status.label}
+      </span>
+      <span class="board-col-count">${colTasks.length}</span>
+    `;
+    col.appendChild(header);
+
+    // Cards
+    const cardList = document.createElement('div');
+    cardList.className = 'board-card-list';
+
+    colTasks.forEach(task => {
+      const card = document.createElement('div');
+      card.className = 'board-card';
+      card.dataset.id = task.id;
+
+      const isDone = task.status === 'complete' || task.status === 'canceled';
+      const fmt = task.due ? formatDate(task.due) : null;
+      const meta = PRIORITY_META[task.priority] || PRIORITY_META.none;
+
+      card.innerHTML = `
+        <div class="board-card-name${isDone ? ' strikethrough' : ''}">${task.name}</div>
+        ${task.tags.length ? `<div class="board-card-tags">${task.tags.map(tag => `<span class="tag-pill" style="${tagPillStyle(tag)}">${tag}</span>`).join('')}</div>` : ''}
+        <div class="board-card-meta">
+          ${task.priority && task.priority !== 'none' ? `<span class="board-card-priority ${task.priority}">${FLAG_SVG.replace('FLAG_CLASS', task.priority)}</span>` : ''}
+          ${fmt ? `<span class="board-card-due${fmt.cls ? ' ' + fmt.cls : ''}">${fmt.text}</span>` : ''}
+        </div>
+      `;
+
+      card.addEventListener('click', () => openTaskPopup(task));
+      cardList.appendChild(card);
+    });
+
+    col.appendChild(cardList);
+
+    // Inline add
+    const addWrap = document.createElement('div');
+    addWrap.className = 'board-add-wrap';
+    const addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.className = 'board-add-input';
+    addInput.placeholder = 'Add task…';
+    addInput.autocomplete = 'off';
+    addInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const raw = addInput.value.trim();
+        if (!raw) return;
+        const inlineTags = parseTags(raw);
+        const name = stripTags(raw) || raw;
+        const task = {
+          id: uid(), name, tags: inlineTags,
+          priority: 'none', due: null,
+          status: status.key, createdAt: Date.now(),
+        };
+        tasks.push(task);
+        saveTasks();
+        expandedSections[status.key] = true;
+        saveExpanded();
+        render();
+        renderBoard();
+        addInput.value = '';
+      }
+      if (e.key === 'Escape') addInput.blur();
+    });
+    addWrap.appendChild(addInput);
+    col.appendChild(addWrap);
+
+    container.appendChild(col);
+  });
+}

@@ -1,5 +1,5 @@
 /* =============================================
-   GDAK Task Manager — calendar.js
+   Task Manager — calendar.js
    ============================================= */
 
 // ---- PAGE NAVIGATION ----
@@ -21,7 +21,9 @@ function switchPage(page) {
   });
   document.getElementById('pageTasks').style.display    = page === 'tasks'    ? 'block' : 'none';
   document.getElementById('pageCalendar').style.display = page === 'calendar' ? 'block' : 'none';
+  document.getElementById('pageBoard').style.display    = page === 'board'    ? 'block' : 'none';
   if (page === 'calendar') renderCalendar();
+  if (page === 'board') renderBoard();
 }
 
 // Restore last page — both pages start hidden via CSS, this reveals the right one
@@ -249,15 +251,39 @@ function renderTaskPopupEdit(task) {
       </div>
     </div>
     <div class="task-popup-actions">
+      <button class="btn-delete" id="editDeleteBtn">Delete</button>
       <button class="btn-cancel" id="editCancelBtn">Cancel</button>
       <button class="btn-add-confirm" id="editSaveBtn">Save</button>
     </div>
   `;
 
   const content = document.getElementById('taskPopupContent');
+  let editDirty = false;
+
+  // Track changes
+  content.querySelector('#editNameInput').addEventListener('input', () => { editDirty = true; });
+  content.querySelector('#editTagInput').addEventListener('input', () => { editDirty = true; });
+
+  // Delete
+  content.querySelector('#editDeleteBtn').addEventListener('click', () => {
+    const snapshot = [...tasks];
+    tasks = tasks.filter(t => t.id !== task.id);
+    saveTasks();
+    render();
+    renderCalendar();
+    renderBoard();
+    closeTaskPopup();
+    showUndoToast(`"${task.name}" deleted`, () => {
+      tasks = snapshot;
+      saveTasks();
+      render();
+      renderCalendar();
+      renderBoard();
+    });
+  });
 
   // Cancel → back to view
-  content.querySelector('#editCancelBtn').addEventListener('click', () => renderTaskPopupView(task));
+  content.querySelector('#editCancelBtn').addEventListener('click', () => { editDirty = false; renderTaskPopupView(task); });
 
   // Status
   const statusBtn = content.querySelector('#editStatusBtn');
@@ -267,6 +293,7 @@ function renderTaskPopupEdit(task) {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       editStatus = item.dataset.status;
+      editDirty = true;
       content.querySelector('#editStatusRing').className = `status-ring ${editStatus}`;
       content.querySelector('#editStatusLabel').textContent = STATUSES.find(s=>s.key===editStatus)?.label || editStatus;
       statusDd.style.display = 'none';
@@ -281,6 +308,7 @@ function renderTaskPopupEdit(task) {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       editPriority = item.dataset.priority;
+      editDirty = true;
       priBtn.textContent = (PRIORITY_META[editPriority]||PRIORITY_META.none).label;
       priDd.style.display = 'none';
     });
@@ -292,6 +320,7 @@ function renderTaskPopupEdit(task) {
   dueBtn.addEventListener('click', (e) => { e.stopPropagation(); dueInput.showPicker?.() || dueInput.click(); });
   dueInput.addEventListener('change', () => {
     editDue = dueInput.value || '';
+    editDirty = true;
     dueBtn.textContent = dueBtnLabel(editDue);
   });
 
@@ -305,11 +334,13 @@ function renderTaskPopupEdit(task) {
     task.priority = editPriority;
     task.due      = editDue || null;
     task.status   = editStatus;
+    editDirty = false;
     saveTasks();
     expandedSections[task.status] = true;
     saveExpanded();
     render();
     renderCalendar();
+    renderBoard();
     renderTaskPopupView(task);
   });
 
@@ -327,6 +358,34 @@ function closeTaskPopup() {
 document.getElementById('taskPopupClose').addEventListener('click', closeTaskPopup);
 document.getElementById('taskPopupOverlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeTaskPopup();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+
+  // Task detail / edit popup
+  const taskOverlay = document.getElementById('taskPopupOverlay');
+  if (taskOverlay.style.display !== 'none') {
+    const inEditMode = !!document.getElementById('editSaveBtn');
+    if (inEditMode) {
+      if (typeof editDirty !== 'undefined' && editDirty) return; // unsaved changes — block
+      // No changes — cancel back to view
+      const task = tasks.find(t => t.id === document.querySelector('[data-id]')?.dataset.id);
+      if (task) renderTaskPopupView(task); else closeTaskPopup();
+    } else {
+      closeTaskPopup();
+    }
+    return;
+  }
+
+  // Add from calendar popup
+  const calOverlay = document.getElementById('addFromCalOverlay');
+  if (calOverlay.style.display !== 'none') {
+    const nameInput = document.getElementById('afcNameInput');
+    const hasContent = nameInput && nameInput.value.trim().length > 0;
+    if (!hasContent) closeAddFromCal();
+    return;
+  }
 });
 
 // ---- ADD FROM CALENDAR ----
