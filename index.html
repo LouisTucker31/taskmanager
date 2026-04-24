@@ -17,15 +17,26 @@
       <span class="logo-text">GDAK</span>
     </div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item active">
+      <a href="#" class="nav-item active" data-page="tasks">
         <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor"/><rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" opacity=".4"/></svg>
         <span>My Tasks</span>
       </a>
+      <a href="#" class="nav-item" data-page="calendar">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><line x1="5" y1="1.5" x2="5" y2="4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="1.5" x2="11" y2="4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="1.5" y1="7" x2="14.5" y2="7" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span>Calendar</span>
+      </a>
     </nav>
     <div class="sidebar-footer">
-      <div class="workspace-chip">
-        <span class="ws-dot"></span>
-        <span>Workspace</span>
+      <button class="nav-item dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">
+        <svg class="icon-sun" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="1" x2="8" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="8" y1="13" x2="8" y2="15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="1" y1="8" x2="3" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="2.9" y1="2.9" x2="4.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11.7" y1="11.7" x2="13.1" y2="13.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="2.9" y1="13.1" x2="4.3" y2="11.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11.7" y1="4.3" x2="13.1" y2="2.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <svg class="icon-moon" viewBox="0 0 16 16" fill="none"><path d="M13.5 10.5A6 6 0 0 1 5.5 2.5a6 6 0 1 0 8 8z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="darkModeLabel">Dark Mode</span>
+      </button>
+      <div class="sidebar-footer-bottom">
+        <div class="workspace-chip">
+          <span class="ws-dot"></span>
+          <span>Workspace</span>
+        </div>
       </div>
     </div>
   </aside>
@@ -33,53 +44,92 @@
   <!-- Main -->
   <main class="main">
 
-    <!-- Header -->
-    <header class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">My Tasks</h1>
-        <span class="workspace-label">GDAK</span>
-      </div>
-      <div class="header-right">
-        <!-- Filter bar -->
-        <div class="filter-bar">
-          <span class="filter-label">Sort:</span>
-          <button class="sort-btn active" data-sort="none">Default</button>
-          <button class="sort-btn" data-sort="priority" data-dir="desc">Priority <span class="sort-arrow">↓</span></button>
-          <button class="sort-btn" data-sort="due" data-dir="asc">Due Date <span class="sort-arrow">↑</span></button>
-          <button class="sort-btn" data-sort="tag" data-dir="asc">Tag <span class="sort-arrow">↑</span></button>
+    <!-- TASKS PAGE -->
+    <div id="pageTasks">
+      <header class="page-header">
+        <div class="header-left">
+          <h1 class="page-title">My Tasks</h1>
+          <span class="workspace-label">GDAK</span>
+        </div>
+        <div class="header-right">
+          <div class="filter-bar">
+            <button class="sort-btn active" data-sort="none">Default</button>
+            <button class="sort-btn" data-sort="priority" data-dir="desc">Priority <svg class="sort-arrow" viewBox="0 0 8 10" fill="none"><path d="M4 9V1M1 4l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="sort-btn" data-sort="due" data-dir="asc">Due Date <svg class="sort-arrow" viewBox="0 0 8 10" fill="none"><path d="M4 9V1M1 4l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="sort-btn" data-sort="tag" data-dir="asc">Tag <svg class="sort-arrow" viewBox="0 0 8 10" fill="none"><path d="M4 9V1M1 4l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+      </header>
+      <div class="search-bar-row">
+        <div class="search-wrap">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.3"/><line x1="9.5" y1="9.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search tasks…" autocomplete="off" />
+          <button class="search-clear" id="searchClear" style="display:none">&times;</button>
         </div>
       </div>
-    </header>
-
-    <!-- Task lists container -->
-    <div class="lists-container" id="listsContainer">
-      <!-- Sections rendered by JS -->
+      <div class="lists-container" id="listsContainer"></div>
     </div>
 
+    <!-- CALENDAR PAGE -->
+    <div id="pageCalendar" style="display:none">
+      <header class="page-header">
+        <div class="header-left">
+          <h1 class="page-title" id="calMonthTitle"></h1>
+          <span class="workspace-label">GDAK</span>
+        </div>
+        <div class="header-right">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" id="calPrev"><svg viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="cal-today-btn" id="calTodayBtn">Today</button>
+            <button class="cal-nav-btn" id="calNext"><svg viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+      </header>
+      <div class="cal-grid-wrap">
+        <div class="cal-day-headers">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+    </div>
 
+    <!-- Task detail popup -->
+    <div class="task-popup-overlay" id="taskPopupOverlay" style="display:none">
+      <div class="task-popup" id="taskPopup">
+        <button class="task-popup-close" id="taskPopupClose">&times;</button>
+        <div class="task-popup-content" id="taskPopupContent"></div>
+      </div>
+    </div>
+
+    <!-- Add from calendar popup -->
+    <div class="task-popup-overlay" id="addFromCalOverlay" style="display:none">
+      <div class="task-popup task-popup-add" id="addFromCalPopup"></div>
+    </div>
+
+<!-- Bulk action bar -->
+    <div class="bulk-bar" id="bulkBar" style="display:none">
+      <span class="bulk-count" id="bulkCount">0 selected</span>
+      <div class="bulk-actions">
+        <div class="bulk-dropdown-wrap">
+          <button class="bulk-btn" id="bulkStatusBtn">Set Status</button>
+          <div class="inline-dropdown" id="bulkStatusDd" style="display:none">
+            ${'' /* rendered by JS */}
+          </div>
+        </div>
+        <div class="bulk-dropdown-wrap">
+          <button class="bulk-btn" id="bulkPriorityBtn">Set Priority</button>
+        </div>
+        <button class="bulk-btn bulk-btn-danger" id="bulkDeleteBtn">Delete</button>
+        <button class="bulk-btn-cancel" id="bulkCancelBtn">Cancel</button>
+      </div>
+    </div>
 
   </main>
-
-  <!-- Context menu -->
-  <div class="context-menu" id="contextMenu" style="display:none">
-    <div class="context-menu-header">Set Status</div>
-    <div class="context-item" data-status="todo"><span class="status-dot todo"></span>To Do</div>
-    <div class="context-item" data-status="planned"><span class="status-dot planned"></span>Planned</div>
-    <div class="context-item" data-status="inprogress"><span class="status-dot inprogress"></span>In Progress</div>
-    <div class="context-item" data-status="updatereq"><span class="status-dot updatereq"></span>Update Required</div>
-    <div class="context-item" data-status="onhold"><span class="status-dot onhold"></span>On Hold</div>
-    <div class="context-item" data-status="complete"><span class="status-dot complete"></span>Complete</div>
-    <div class="context-item" data-status="canceled"><span class="status-dot canceled"></span>Canceled</div>
-    <div class="context-divider"></div>
-    <div class="context-item context-delete" id="contextDelete">
-      <svg viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M5 3.5V2h4v1.5M5.5 6v4.5M8.5 6v4.5M3 3.5l.5 8h7l.5-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Delete Task
-    </div>
-  </div>
 
   <!-- Overlay for closing dropdowns -->
   <div class="overlay" id="overlay" style="display:none"></div>
 
   <script src="app.js"></script>
+  <script src="calendar.js"></script>
 </body>
 </html>
