@@ -1,0 +1,90 @@
+/* =============================================
+   base.css — reset, tokens, typography
+   ============================================= */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --icon-invert: 0;
+  --sidebar-w: 220px;
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --border: #e8e8ec;
+  --border-light: #f0f0f3;
+  --text: #1a1a2e;
+  --text-muted: #7a7a90;
+  --text-xmuted: #8e8ea0;
+  --accent: #4f46e5;
+  --accent-light: #ede9fe;
+  --radius: 8px;
+  --radius-sm: 5px;
+
+  --urgent: #ef4444;
+  --high: #f59e0b;
+  --normal: #6366f1;
+  --low: #94a3b8;
+
+  --c-todo: #94a3b8;
+  --c-planned: #818cf8;
+  --c-inprogress: #6366f1;
+  --c-updatereq: #f59e0b;
+  --c-onhold: #f97316;
+  --c-complete: #22c55e;
+  --c-canceled: #d1d5db;
+
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  height: 100vh;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* Pages hidden until JS reveals the right one — prevents flash */
+#pageTasks, #pageCalendar, #pageBoard, #pageGantt { display: none; }
+
+/* All pages are flex columns when visible */
+#pageTasks, #pageBoard { flex-direction: column; }
+
+/* ---- Dark mode tokens ---- */
+[data-theme="dark"] {
+  --icon-invert: 1;
+  --bg:           #111118;
+  --surface:      #1c1c26;
+  --border:       #2e2e3e;
+  --border-light: #252535;
+  --text:         #e8e8f0;
+  --text-muted:   #9090a8;
+  --text-xmuted:  #5a5a72;
+  --accent:       #6366f1;
+  --accent-light: #1e1e3a;
+}
+
+/* ---- Animations ---- */
+@keyframes menuIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes popupIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes rowHighlight {
+  0%   { background: #ede9fe; }
+  100% { background: transparent; }
+}

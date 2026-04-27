@@ -1,0 +1,117 @@
+/* =============================================
+   pages/board.css — board / kanban page
+   ============================================= */
+
+#pageBoard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#pageBoard .page-header {
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+
+.board-columns {
+  display: flex; gap: clamp(4px, 0.5vw, 8px); padding: 0 16px 40px;
+  overflow-x: auto; flex: 1 1 0;
+}
+
+.board-col {
+  flex: 1 1 0; min-width: 0;
+  align-self: flex-start;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); display: flex; flex-direction: column;
+  container-type: inline-size;
+}
+
+/* Show short label by default, full label when column is wide enough */
+.board-col-header .badge-label-full  { display: none; }
+.board-col-header .badge-label-short { display: inline; }
+
+@container (min-width: 150px) {
+  .board-col-header .badge-label-full  { display: inline; }
+  .board-col-header .badge-label-short { display: none; }
+}
+
+.board-col-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: clamp(6px, 1vw, 12px) clamp(6px, 1vw, 14px) clamp(6px, 1vw, 10px);
+  border-bottom: 1px solid var(--border-light); flex-shrink: 0; gap: 4px;
+}
+
+.board-col-count {
+  font-size: clamp(9px, 0.8vw, 11px); font-weight: 600; color: var(--text-xmuted);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 999px; padding: 1px clamp(4px, 0.5vw, 8px);
+  flex-shrink: 0;
+}
+
+.board-card-list {
+  flex: 0 0 auto; overflow-y: visible; padding: 10px 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.board-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.board-card:hover { border-color: #a5b4fc; box-shadow: 0 2px 8px rgba(99,102,241,0.08); }
+
+.board-card-name { font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
+.board-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.board-card-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+
+.board-card-priority { display: flex; align-items: center; }
+.board-card-priority .flag-svg { width: 11px; height: 11px; }
+.board-card-priority.urgent .flag-svg { color: var(--urgent); }
+.board-card-priority.high   .flag-svg { color: var(--high); }
+.board-card-priority.normal .flag-svg { color: var(--normal); }
+.board-card-priority.low    .flag-svg { color: var(--low); }
+
+.board-card-due { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+.board-card-due.overdue { color: #ef4444; }
+.board-card-due.today   { color: #f59e0b; }
+
+/* Fluid badge sizing scoped to board columns */
+.board-col-header .status-badge {
+  font-size: clamp(9px, 0.9vw, 11.5px);
+  padding: 3px clamp(5px, 0.6vw, 10px) 3px clamp(4px, 0.5vw, 7px);
+  gap: clamp(3px, 0.4vw, 6px);
+  white-space: nowrap;
+}
+.board-col-header .status-badge .badge-dot {
+  width: clamp(5px, 0.5vw, 7px);
+  height: clamp(5px, 0.5vw, 7px);
+  flex-shrink: 0;
+}
+
+.board-add-wrap { margin-top: 8px; padding: 2px 10px 10px; flex-shrink: 0; }
+
+.board-add-input {
+  width: 100%; background: transparent; border: 1px dashed var(--border);
+  border-radius: var(--radius-sm); padding: 6px 10px; font-size: 12px;
+  font-family: 'Poppins', sans-serif; color: var(--text); outline: none;
+  transition: border-color 0.15s;
+}
+.board-add-input::placeholder { color: var(--text-xmuted); }
+.board-add-input:focus { border-color: #a5b4fc; border-style: solid; }
+
+/* Empty state — shared by board and gantt */
+.board-empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  width: 100%; flex: 1 1 0; padding-top: 80px; text-align: center; color: var(--text-xmuted);
+}
+.board-empty-state svg { width: 52px; height: 52px; margin-bottom: 16px; opacity: 0.35; }
+.board-empty-title { font-size: 15px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+.board-empty-sub { font-size: 13px; color: var(--text-xmuted); max-width: 280px; line-height: 1.5; }
+
+/* Dark mode */
+[data-theme="dark"] .board-card { background: #16161f; border-color: #2e2e3e; }
+[data-theme="dark"] .board-card:hover { border-color: #6366f1; }
+[data-theme="dark"] .board-col { background: var(--surface); border-color: #2e2e3e; }
+[data-theme="dark"] .board-col-header { border-bottom-color: #252535; }
+[data-theme="dark"] .board-add-input { border-color: #2e2e3e; color: var(--text); }
+[data-theme="dark"] .board-add-input:focus { border-color: #6366f1; }

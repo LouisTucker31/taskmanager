@@ -4,9 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Task Manager</title>
-  <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/pages/tasks.css" />
+  <link rel="stylesheet" href="css/pages/calendar.css" />
+  <link rel="stylesheet" href="css/pages/board.css" />
+  <link rel="stylesheet" href="css/pages/gantt.css" />
 </head>
 <body>
 
@@ -28,6 +34,10 @@
       <a href="#" class="nav-item" data-page="board">
         <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="4" height="14" rx="1" fill="currentColor" opacity=".4"/><rect x="6" y="1" width="4" height="14" rx="1" fill="currentColor"/><rect x="11" y="1" width="4" height="14" rx="1" fill="currentColor" opacity=".4"/></svg>
         <span>Board</span>
+      </a>
+      <a href="#" class="nav-item" data-page="gantt">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="7" height="2.5" rx="1.25" fill="currentColor"/><rect x="1" y="7" width="11" height="2.5" rx="1.25" fill="currentColor" opacity=".65"/><rect x="1" y="11" width="5" height="2.5" rx="1.25" fill="currentColor" opacity=".4"/></svg>
+        <span>Gantt</span>
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -73,18 +83,64 @@
       </div>
       <div class="lists-container" id="listsContainer"></div>
     </div>
-<!-- BOARD PAGE -->
-    <div id="pageBoard" style="display:none">
+
+    <!-- BOARD PAGE -->
+    <div id="pageBoard">
       <header class="page-header">
         <div class="header-left">
           <h1 class="page-title">Board</h1>
           <span class="workspace-label">Task Manager</span>
         </div>
+        <div class="header-right">
+          <button class="gantt-add-btn" id="boardAddBtn">
+            <svg viewBox="0 0 12 12" fill="none"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Add Task
+          </button>
+        </div>
       </header>
       <div class="board-columns" id="boardColumns"></div>
+      <div class="board-empty-state" id="boardEmptyState" style="display:none">
+        <svg viewBox="0 0 48 48" fill="none"><rect x="4" y="4" width="12" height="40" rx="3" fill="currentColor" opacity=".25"/><rect x="19" y="4" width="12" height="40" rx="3" fill="currentColor" opacity=".4"/><rect x="34" y="4" width="12" height="40" rx="3" fill="currentColor" opacity=".2"/></svg>
+        <div class="board-empty-title">No tasks yet</div>
+        <div class="board-empty-sub">Add a task from the My Tasks page or click Add Task above.</div>
+      </div>
     </div>
+
+    <!-- GANTT PAGE -->
+    <div id="pageGantt">
+      <header class="page-header">
+        <div class="header-left">
+          <h1 class="page-title">Gantt</h1>
+          <span class="workspace-label">Task Manager</span>
+        </div>
+        <div class="header-right">
+          <div class="gantt-controls" style="margin-bottom:0">
+            <button class="gantt-range-btn" data-range="week">Week</button>
+            <button class="gantt-range-btn active" data-range="month">Month</button>
+            <button class="gantt-range-btn" data-range="quarter">Quarter</button>
+            <button class="gantt-add-btn" id="ganttAddBtn">
+              <svg viewBox="0 0 12 12" fill="none"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Add Task
+            </button>
+          </div>
+        </div>
+      </header>
+      <div class="gantt-chart" id="ganttChart">
+        <div class="gantt-header">
+          <div class="gantt-label-col">Task</div>
+          <div class="gantt-timeline-header" id="ganttTimelineHeader"></div>
+        </div>
+        <div class="gantt-body" id="ganttBody"></div>
+      </div>
+      <div class="board-empty-state" id="ganttEmptyState" style="display:none">
+        <svg viewBox="0 0 48 48" fill="none"><rect x="3" y="9" width="21" height="7.5" rx="3.75" fill="currentColor"/><rect x="3" y="21" width="33" height="7.5" rx="3.75" fill="currentColor" opacity=".65"/><rect x="3" y="33" width="15" height="7.5" rx="3.75" fill="currentColor" opacity=".4"/></svg>
+        <div class="board-empty-title">No tasks yet</div>
+        <div class="board-empty-sub">Add a task from the My Tasks page or click Add Task above.</div>
+      </div>
+    </div>
+
     <!-- CALENDAR PAGE -->
-    <div id="pageCalendar" style="display:none">
+    <div id="pageCalendar">
       <header class="page-header">
         <div class="header-left">
           <h1 class="page-title" id="calMonthTitle"></h1>
@@ -119,15 +175,13 @@
       <div class="task-popup task-popup-add" id="addFromCalPopup"></div>
     </div>
 
-<!-- Bulk action bar -->
+    <!-- Bulk action bar -->
     <div class="bulk-bar" id="bulkBar" style="display:none">
       <span class="bulk-count" id="bulkCount">0 selected</span>
       <div class="bulk-actions">
         <div class="bulk-dropdown-wrap">
           <button class="bulk-btn" id="bulkStatusBtn">Set Status</button>
-          <div class="inline-dropdown" id="bulkStatusDd" style="display:none">
-            ${'' /* rendered by JS */}
-          </div>
+          <div class="inline-dropdown" id="bulkStatusDd" style="display:none"></div>
         </div>
         <div class="bulk-dropdown-wrap">
           <button class="bulk-btn" id="bulkPriorityBtn">Set Priority</button>
@@ -142,7 +196,6 @@
   <!-- Overlay for closing dropdowns -->
   <div class="overlay" id="overlay" style="display:none"></div>
 
-  <script src="app.js"></script>
-  <script src="calendar.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

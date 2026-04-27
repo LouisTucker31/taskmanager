@@ -1,0 +1,191 @@
+/* =============================================
+   pages/tasks.css — task list page
+   ============================================= */
+
+/* ---- Section ---- */
+.section { margin-bottom: 6px; }
+
+.section-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; min-height: 36px; cursor: pointer; user-select: none;
+}
+
+.section-toggle {
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-xmuted); transition: transform 0.2s; flex-shrink: 0;
+}
+.section-toggle svg { width: 10px; height: 10px; }
+.section-toggle.open { transform: rotate(90deg); }
+
+.section-name-badge { display: flex; align-items: center; gap: 8px; }
+
+.section-count {
+  font-size: 11.5px; font-weight: 500; color: var(--text-xmuted);
+  background: var(--bg); padding: 1px 7px;
+  border-radius: 999px; border: 1px solid var(--border-light);
+}
+
+.section-body {
+  border-radius: var(--radius); overflow: visible;
+  border: 1px solid var(--border-light); background: var(--surface);
+  margin-top: 2px; position: relative;
+}
+[data-theme="dark"] .section-body { border-color: #2e2e3e; }
+
+/* ---- Task table header ---- */
+.task-table-header {
+  display: grid;
+  grid-template-columns: 1fr 120px 110px 180px 44px;
+  padding: 6px 16px; border-bottom: 1px solid var(--border-light);
+  font-size: 11px; font-weight: 600; color: var(--text-xmuted);
+  letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+/* ---- Task row ---- */
+.task-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 110px 180px 44px;
+  align-items: center; padding: 0 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: default; transition: background 0.1s; position: relative;
+}
+.task-row > *:nth-child(2) { padding-left: 0; }
+.task-row:last-child { border-bottom: none; }
+.task-row:hover { background: #fafafa; }
+.task-row.filtered-out { display: none; }
+[data-theme="dark"] .task-row:hover { background: #1e1e28; }
+
+/* ---- Name cell ---- */
+.task-name-cell {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 0; padding-left: 0;
+}
+
+.task-checkbox {
+  width: 16px; height: 16px; min-width: 16px;
+  border-radius: 4px; border: 1.5px solid var(--border);
+  background: var(--bg); cursor: pointer;
+  align-items: center; justify-content: center;
+  margin-right: 8px; flex-shrink: 0;
+}
+.task-checkbox.checked { background: #6366f1; border-color: #6366f1; }
+
+.task-status-icon { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; position: relative; }
+
+.task-name-text {
+  font-size: 13.5px; font-weight: 400; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 7px 0; line-height: 1.4;
+}
+.task-name-text.strikethrough { text-decoration: line-through; color: var(--text-xmuted); }
+
+/* ---- Tag cell ---- */
+.tag-cell {
+  display: flex; align-items: center; cursor: pointer;
+  border-radius: var(--radius-sm); padding: 3px 6px; transition: background 0.1s;
+}
+.tag-cell:hover { background: var(--bg); }
+.tag-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-left: 4px; }
+.tag-cell-empty { font-size: 13px; color: var(--text-xmuted); }
+
+/* ---- Priority cell ---- */
+.priority-cell {
+  position: relative; cursor: pointer; border-radius: var(--radius-sm);
+  padding: 3px 6px; display: flex; align-items: center; gap: 5px;
+  transition: background 0.1s; font-size: 12.5px; font-weight: 500;
+}
+.priority-cell:hover { background: var(--bg); }
+.priority-text { color: var(--text-muted); }
+
+/* ---- Due cell ---- */
+.due-cell {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  border-radius: var(--radius-sm); padding: 3px 6px; transition: background 0.1s;
+  position: relative; font-size: 12.5px; font-weight: 400;
+  color: var(--text-muted); font-family: 'DM Mono', monospace;
+}
+.due-cell:hover { background: var(--bg); }
+.due-cell.overdue { color: var(--urgent); font-weight: 600; }
+.due-cell.today   { color: var(--high);   font-weight: 600; }
+
+.due-text { font-size: 12.5px; font-family: 'DM Mono', monospace; pointer-events: none; }
+
+.due-inline-input {
+  border: none; outline: none; font-size: 13px;
+  font-family: 'DM Mono', monospace; color: var(--text-muted);
+  background: transparent; width: 110px; cursor: pointer;
+}
+
+.due-clear-btn {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  color: var(--text-xmuted); display: flex; align-items: center;
+  opacity: 0; transition: opacity 0.1s; flex-shrink: 0; margin-left: 4px;
+}
+.due-clear-btn svg { width: 10px; height: 10px; }
+.due-cell:hover .due-clear-btn { opacity: 1; }
+.due-clear-btn:hover { color: var(--urgent); }
+
+.recur-icon {
+  display: inline-flex; align-items: center; margin-left: 5px;
+  color: #6366f1; opacity: 0.7; flex-shrink: 0; pointer-events: none;
+}
+.recur-icon svg { width: 11px; height: 11px; }
+
+/* ---- Three-dot button ---- */
+.three-dot-btn {
+  background: none; border: none; cursor: pointer; color: var(--text-xmuted);
+  padding: 0; width: 44px; height: 44px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.1s, background 0.1s;
+}
+.task-row:hover .three-dot-btn { opacity: 1; }
+.three-dot-btn:hover { background: var(--bg); color: var(--text-muted); }
+.three-dot-btn svg { width: 14px; height: 14px; }
+
+/* ---- Inline add row ---- */
+.inline-add-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 110px 180px 44px;
+  align-items: center; padding: 0 16px;
+  border-top: 1px solid var(--border-light);
+  background: var(--surface); position: relative;
+}
+
+.inline-add-input {
+  padding: 7px 0 7px 16px; border: none; outline: none;
+  font-size: 13.5px; font-family: 'Poppins', sans-serif;
+  color: var(--text); background: transparent; width: 100%;
+}
+.inline-add-input::placeholder { color: var(--text-xmuted); font-style: italic; }
+
+.task-name-edit {
+  border: none; outline: none; font-size: 13.5px;
+  font-family: 'Poppins', sans-serif; color: var(--text);
+  background: transparent; width: 100%; padding: 0;
+}
+
+/* ---- Assignee cell ---- */
+.assignee-cell { display: flex; justify-content: flex-end; }
+.avatar-placeholder { width: 22px; height: 22px; border-radius: 50%; background: var(--border); border: 1px solid var(--border); }
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .task-table-header {
+    grid-template-columns: 1fr 44px; padding: 8px 12px;
+  }
+  .task-table-header > *:nth-child(2),
+  .task-table-header > *:nth-child(3),
+  .task-table-header > *:nth-child(4) { display: none; }
+
+  .task-row { grid-template-columns: 1fr 44px; padding: 10px 12px; }
+  .task-row > *:nth-child(2),
+  .task-row > *:nth-child(3),
+  .task-row > *:nth-child(4) { display: none; }
+
+  .inline-add-row { grid-template-columns: 1fr; padding: 0 12px; }
+  .inline-add-input { padding-left: 16px; }
+  .section-header { padding: 10px 4px; }
+  .task-status-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-left: -12px; }
+  .three-dot-btn { opacity: 1; }
+}
