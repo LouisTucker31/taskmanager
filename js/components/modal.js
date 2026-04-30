@@ -1,5 +1,5 @@
 import { STATUSES, PRIORITY_META, FLAG_SVG } from '../modules/constants.js';
-import { getTasks, setTasks, persistTasks, getExpanded, persistExpanded, getEvents, setEvents, persistEvents } from '../modules/state.js';
+import { getTasks, setTasks, persistTasks, getExpanded, persistExpanded, getEvents, setEvents, persistEvents, tagPillStyle } from '../modules/state.js';
 import { formatDate, esc, dueBtnLabel, parseTags, stripTags, uid, dateToStr, normaliseTags } from '../modules/utils.js';
 import { showUndoToast } from './toast.js';
 
@@ -628,12 +628,9 @@ function _renderEventView(event) {
     </div>
   `;
 
-  // Inject tag pills using live tagPillStyle
   if (event.tags && event.tags.length) {
-    import('../modules/state.js').then(({ tagPillStyle }) => {
-      const tagEl = popup.querySelector('#evtViewTags');
-      if (tagEl) tagEl.innerHTML = event.tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('');
-    });
+    const tagEl = popup.querySelector('#evtViewTags');
+    if (tagEl) tagEl.innerHTML = event.tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('');
   }
   if (event.guests && event.guests.length) {
     const guestEl = popup.querySelector('#evtViewGuests');

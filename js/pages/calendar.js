@@ -73,7 +73,17 @@ export function renderCalendar() {
   // Add events to the date map
   getEvents().forEach(ev => {
     if (!ev.date) return;
-    _addToDate(ev.date, { ...ev, _isEvent: true });
+    if (ev.endDate && ev.endDate > ev.date) {
+      const [sy, sm, sd] = ev.date.split('-').map(Number);
+      let cur = new Date(sy, sm - 1, sd);
+      const last = new Date(ev.endDate + 'T00:00:00');
+      while (cur <= last) {
+        _addToDate(dateToStr(cur), { ...ev, _isEvent: true });
+        cur.setDate(cur.getDate() + 1);
+      }
+    } else {
+      _addToDate(ev.date, { ...ev, _isEvent: true });
+    }
   });
 
   getTasks().filter(t => t.status !== 'complete' && t.status !== 'canceled').forEach(t => {
