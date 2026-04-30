@@ -88,17 +88,6 @@
   flex-shrink: 0;
 }
 
-.board-group-btn {
-  background: none; border: none; cursor: pointer;
-  padding: 4px 11px; min-height: 30px; border-radius: 999px;
-  font-size: 12px; font-weight: 500; color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
-  transition: background 0.12s, color 0.12s;
-  display: flex; align-items: center; gap: 3px;
-}
-.board-group-btn:hover { background: var(--bg); color: var(--text); }
-.board-group-btn.active { background: var(--text); color: #fff; }
-[data-theme="dark"] .board-group-btn.active { background: #e8e8f0; color: #111118; }
 
 .board-col-header-label { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
 
