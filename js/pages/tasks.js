@@ -385,16 +385,18 @@ export function renderEvents() {
     const dateLabel = _fmtDate(ev.date);
     const endLabel  = ev.endDate && ev.endDate !== ev.date ? ` – ${_fmtDate(ev.endDate)}` : '';
     const timeLabel = _fmtTime(ev);
+    const tags = ev.tags || [];
+    const guests = ev.guests || [];
 
     row.innerHTML = `
       <div class="event-row-dot ${isPast ? 'past' : ''}"></div>
       <div class="event-row-main">
-        <span class="event-row-title ${isPast ? 'event-past' : ''}">${esc(ev.title)}</span>
-        ${(ev.tags && ev.tags.length) ? `<span class="event-row-tags">${ev.tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('')}</span>` : ''}
+        <span class="event-row-title ${isPast ? 'event-past' : ''}">${esc(ev.title || '')}</span>
+        ${tags.length ? `<span class="event-row-tags">${tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('')}</span>` : ''}
       </div>
       <div class="event-row-date">${dateLabel}${endLabel}</div>
       <div class="event-row-time">${timeLabel}</div>
-      <div class="event-row-guests">${ev.guests && ev.guests.length ? ev.guests.slice(0,2).map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('') + (ev.guests.length > 2 ? `<span class="event-guest-more">+${ev.guests.length - 2}</span>` : '') : '<span style="color:var(--text-xmuted)">—</span>'}</div>
+      <div class="event-row-guests">${guests.length ? guests.slice(0,2).map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('') + (guests.length > 2 ? `<span class="event-guest-more">+${guests.length - 2}</span>` : '') : '<span style="color:var(--text-xmuted)">—</span>'}</div>
       <div class="event-row-actions">
         <button class="three-dot-btn event-dot-btn" aria-label="Event options">
           <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="13" r="1.2"/></svg>

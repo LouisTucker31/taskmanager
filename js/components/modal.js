@@ -607,10 +607,7 @@ function _renderEventView(event) {
     timeLabel = event.startTime.slice(0,5) + (event.endTime ? ` – ${event.endTime.slice(0,5)}` : '');
   }
 
-  const tagPills = (event.tags || []).map(t => {
-    import('../modules/state.js').then(({ tagPillStyle }) => {});
-    return `<span class="tag-pill" style="">${esc(t)}</span>`;
-  });
+  const tagPills = (event.tags || []).map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`);
 
   popup.innerHTML = `
     <button class="task-popup-close" id="evtViewClose">&times;</button>
@@ -765,10 +762,8 @@ function _renderEventForm(event, prefillDate) {
 
   function _getAllTags() {
     const map = {};
-    import('../modules/state.js').then(({ getTasks, getEvents }) => {
-      getTasks().forEach(t => t.tags.forEach(tag => { map[tag] = true; }));
-      getEvents().forEach(ev => (ev.tags || []).forEach(tag => { map[tag] = true; }));
-    });
+    getTasks().forEach(t => t.tags.forEach(tag => { map[tag] = true; }));
+    getEvents().forEach(ev => (ev.tags || []).forEach(tag => { map[tag] = true; }));
     return Object.keys(map).sort();
   }
 
@@ -781,35 +776,33 @@ function _renderEventForm(event, prefillDate) {
     const word = _getLastWord().replace(/^#+/, '').toLowerCase();
     suggestBox.innerHTML = '';
     if (!word) { suggestBox.style.display = 'none'; return; }
-    import('../modules/state.js').then(({ getTasks, getEvents, tagPillStyle }) => {
-      const allTags = {};
-      getTasks().forEach(t => t.tags.forEach(tag => { allTags[tag] = true; }));
-      getEvents().forEach(ev => (ev.tags || []).forEach(tag => { allTags[tag] = true; }));
-      const typed = normaliseTags(tagInput.value);
-      const matches = Object.keys(allTags).filter(t => t.startsWith(word) && !typed.includes(t));
-      if (matches.length === 0) { suggestBox.style.display = 'none'; return; }
-      matches.slice(0, 6).forEach(tag => {
-        const item = document.createElement('div');
-        item.className = 'tag-suggest-item';
-        const pill = document.createElement('span');
-        pill.className = 'tag-pill';
-        pill.style.cssText = tagPillStyle(tag);
-        pill.textContent = tag;
-        item.appendChild(pill);
-        item.addEventListener('mousedown', () => { suppressTagBlur = true; });
-        item.addEventListener('click', () => {
-          const parts = tagInput.value.trimEnd().split(/\s+/);
-          parts[parts.length - 1] = tag;
-          tagInput.value = parts.join(' ') + ' ';
-          suggestBox.style.display = 'none';
-          suppressTagBlur = false;
-          tagInput.focus();
-          _renderTagSuggestions();
-        });
-        suggestBox.appendChild(item);
+    const allTags = {};
+    getTasks().forEach(t => t.tags.forEach(tag => { allTags[tag] = true; }));
+    getEvents().forEach(ev => (ev.tags || []).forEach(tag => { allTags[tag] = true; }));
+    const typed = normaliseTags(tagInput.value);
+    const matches = Object.keys(allTags).filter(t => t.startsWith(word) && !typed.includes(t));
+    if (matches.length === 0) { suggestBox.style.display = 'none'; return; }
+    matches.slice(0, 6).forEach(tag => {
+      const item = document.createElement('div');
+      item.className = 'tag-suggest-item';
+      const pill = document.createElement('span');
+      pill.className = 'tag-pill';
+      pill.style.cssText = tagPillStyle(tag);
+      pill.textContent = tag;
+      item.appendChild(pill);
+      item.addEventListener('mousedown', () => { suppressTagBlur = true; });
+      item.addEventListener('click', () => {
+        const parts = tagInput.value.trimEnd().split(/\s+/);
+        parts[parts.length - 1] = tag;
+        tagInput.value = parts.join(' ') + ' ';
+        suggestBox.style.display = 'none';
+        suppressTagBlur = false;
+        tagInput.focus();
+        _renderTagSuggestions();
       });
-      suggestBox.style.display = 'block';
+      suggestBox.appendChild(item);
     });
+    suggestBox.style.display = 'block';
   }
 
   tagInput.addEventListener('input', _renderTagSuggestions);

@@ -59,7 +59,21 @@ export function savePage(page) {
 export function loadEvents() {
   try {
     const raw = localStorage.getItem(KEYS.events);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return parsed.map(ev => ({
+      id:        ev.id        || '',
+      title:     ev.title     || ev.name || '',
+      date:      ev.date      || null,
+      endDate:   ev.endDate   || null,
+      allDay:    ev.allDay    !== undefined ? ev.allDay : true,
+      startTime: ev.startTime || ev.time  || null,
+      endTime:   ev.endTime   || null,
+      tags:      Array.isArray(ev.tags)   ? ev.tags   : [],
+      guests:    Array.isArray(ev.guests) ? ev.guests : [],
+      notes:     ev.notes     || null,
+      createdAt: ev.createdAt || 0,
+    }));
   } catch { return []; }
 }
 
