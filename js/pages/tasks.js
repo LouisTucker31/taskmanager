@@ -340,7 +340,7 @@ export function renderEvents() {
   const container = document.getElementById('eventsListContainer');
   if (!container) return;
   container.innerHTML = '';
-  console.log('[renderEvents] called, events:', getEvents().length, 'container display:', container.style.display);
+  console.log('[renderEvents] events:', getEvents().length, getEvents());
 
   const allEvents = getEvents();
   const todayStr  = dateToStr(new Date());
@@ -874,8 +874,8 @@ function _applyTab(tab) {
   document.getElementById('eventsListContainer').style.display  = isEvents ? 'block' : 'none';
   document.getElementById('tasksToolbar').style.display         = isEvents ? 'none' : 'flex';
   document.getElementById('eventsToolbar').style.display        = isEvents ? 'flex' : 'none';
-  document.getElementById('tasksSearchRow').style.display       = isEvents ? 'none' : 'block';
-  document.getElementById('eventsSearchRow').style.display      = isEvents ? 'block' : 'none';
+  document.getElementById('tasksSearchRow').style.display       = isEvents ? 'none' : 'flex';
+  document.getElementById('eventsSearchRow').style.display      = isEvents ? 'flex' : 'none';
   document.querySelectorAll('.tasks-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   if (isEvents) renderEvents();
 }
