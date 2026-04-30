@@ -4,9 +4,10 @@ export const STATUSES = [
   { key: 'inprogress', label: 'In Progress',      shortLabel: 'In Progress',primary: false },
   { key: 'updatereq',  label: 'Update Required',  shortLabel: 'Update',     primary: false },
   { key: 'onhold',     label: 'On Hold',          shortLabel: 'On Hold',    primary: false },
-  { key: 'complete',   label: 'Complete',         shortLabel: 'Complete',   primary: false },
-  { key: 'canceled',   label: 'Canceled',         shortLabel: 'Canceled',   primary: false },
 ];
+
+export const DONE_STATUSES = ['complete', 'canceled'];
+export const isDone = t => DONE_STATUSES.includes(t.status);
 
 export const PRIORITY_META = {
   urgent: { label: 'Urgent',      color: '#ef4444' },

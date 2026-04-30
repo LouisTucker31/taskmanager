@@ -1,4 +1,4 @@
-import { STATUSES, PRIORITY_META, PRIORITY_ORDER, FLAG_SVG } from '../modules/constants.js';
+import { STATUSES, PRIORITY_META, PRIORITY_ORDER, FLAG_SVG, isDone, DONE_STATUSES } from '../modules/constants.js';
 import {
   getTasks, setTasks, persistTasks,
   getExpanded, persistExpanded,
@@ -53,7 +53,7 @@ function _applySearch(tasks, searchQuery) {
   });
 }
 
-function _buildSectionBody(tasks, searchQuery, allCount, sectionKey, statusKeyForAdd) {
+function _buildSectionBody(tasks, searchQuery, allCount, sectionKey, statusKeyForAdd, noAdd = false) {
   const body = document.createElement('div');
   body.className = 'section-body';
 
@@ -73,22 +73,57 @@ function _buildSectionBody(tasks, searchQuery, allCount, sectionKey, statusKeyFo
     searched.forEach(task => body.appendChild(buildTaskRow(task)));
   }
 
-  const addRow = document.createElement('div');
-  addRow.className = 'inline-add-row';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'inline-add-input';
-  input.placeholder = allCount === 0 ? 'Type a task and press Enter…' : 'Add another task…';
-  input.autocomplete = 'off';
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') confirmInlineAdd(input, statusKeyForAdd);
-    if (e.key === 'Escape') input.blur();
-  });
-  input.addEventListener('blur', () => confirmInlineAdd(input, statusKeyForAdd));
-  addRow.appendChild(input);
-  body.appendChild(addRow);
+  if (!noAdd) {
+    const addRow = document.createElement('div');
+    addRow.className = 'inline-add-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-add-input';
+    input.placeholder = allCount === 0 ? 'Type a task and press Enter…' : 'Add another task…';
+    input.autocomplete = 'off';
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') confirmInlineAdd(input, statusKeyForAdd);
+      if (e.key === 'Escape') input.blur();
+    });
+    input.addEventListener('blur', () => confirmInlineAdd(input, statusKeyForAdd));
+    addRow.appendChild(input);
+    body.appendChild(addRow);
+  }
 
   return body;
+}
+
+function _appendCompletedSection(container, doneTasks, searchQuery) {
+  if (doneTasks.length === 0) return;
+
+  const COMPLETED_KEY = '__completed__';
+  const isOpen = !!getExpanded()[COMPLETED_KEY]; // default false = collapsed
+
+  const section = document.createElement('div');
+  section.className = 'section section-completed';
+
+  const header = document.createElement('div');
+  header.className = 'section-header';
+  header.innerHTML = `
+    <div class="section-toggle ${isOpen ? 'open' : ''}">
+      <svg viewBox="0 0 8 12" fill="none"><path d="M2 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="section-name-badge">
+      <span class="status-badge badge-complete">
+        <span class="badge-dot"></span>
+        Completed
+      </span>
+    </div>
+    <span class="section-count">${doneTasks.length}</span>
+  `;
+  header.querySelector('.section-toggle').addEventListener('click', () => toggleSection(COMPLETED_KEY));
+  section.appendChild(header);
+
+  if (isOpen) {
+    section.appendChild(_buildSectionBody(doneTasks, searchQuery, doneTasks.length, COMPLETED_KEY, 'complete', true));
+  }
+
+  container.appendChild(section);
 }
 
 function _renderByStatus() {
@@ -131,6 +166,9 @@ function _renderByStatus() {
 
     container.appendChild(section);
   });
+
+  const doneTasks = _sortTasks(getTasks().filter(isDone));
+  _appendCompletedSection(container, doneTasks, searchQuery);
 }
 
 function _renderByGroup(groupBy) {
@@ -139,8 +177,8 @@ function _renderByGroup(groupBy) {
   const searchQuery = getSearchQuery();
   const allTasks = getTasks();
 
-  // Build sorted task list
-  const sorted = _sortTasks([...allTasks]);
+  // Build sorted task list — active only; done tasks go to the completed section
+  const sorted = _sortTasks(allTasks.filter(t => !isDone(t)));
 
   // Determine groups and their display info
   let groups; // [{ key, label, headerHtml, tasks }]
@@ -234,7 +272,9 @@ function _renderByGroup(groupBy) {
       }));
   }
 
-  if (!groups || groups.length === 0) {
+  const doneTasks = _sortTasks(allTasks.filter(isDone));
+
+  if ((!groups || groups.length === 0) && doneTasks.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty-section-hint';
     empty.textContent = 'No tasks.';
@@ -265,6 +305,8 @@ function _renderByGroup(groupBy) {
 
     container.appendChild(section);
   });
+
+  _appendCompletedSection(container, doneTasks, searchQuery);
 }
 
 function _sortTasks(list) {
@@ -771,14 +813,22 @@ export function initTasksPage() {
     e.stopPropagation();
     const dd = document.getElementById('bulkStatusDd');
     if (dd.children.length === 0) {
-      STATUSES.forEach(s => {
+      const allStatuses = [
+        ...STATUSES,
+        { key: 'complete', label: 'Complete' },
+        { key: 'canceled', label: 'Canceled' },
+      ];
+      allStatuses.forEach(s => {
         const item = document.createElement('div');
         item.className = 'inline-dropdown-item';
         item.innerHTML = `<span class="status-dot ${s.key}"></span>${s.label}`;
         item.addEventListener('click', () => {
           getSelectedIds().forEach(id => {
             const t = getTasks().find(t => t.id === id);
-            if (t) { t.status = s.key; getExpanded()[s.key] = true; }
+            if (t) {
+              t.status = s.key;
+              if (!DONE_STATUSES.includes(s.key)) getExpanded()[s.key] = true;
+            }
           });
           persistTasks();
           persistExpanded();

@@ -43,12 +43,10 @@ export function setGroupBy(g) { activeGroupBy = g; }
 
 export function getFilteredTasks(statusKey) {
   let list = tasks.filter(t => t.status === statusKey);
-  const isDone = t => t.status === 'complete' || t.status === 'canceled';
   if (activeSort.type === 'created') {
-    const sorted = [...list].sort((a, b) => a.createdAt - b.createdAt);
-    return [...sorted.filter(t => !isDone(t)), ...sorted.filter(t => isDone(t))];
+    return [...list].sort((a, b) => a.createdAt - b.createdAt);
   }
-  const sorted = [...list].sort((a, b) => {
+  return [...list].sort((a, b) => {
     let valA, valB;
     if (activeSort.type === 'priority') {
       valA = PRIORITY_ORDER[a.priority] ?? 99;
@@ -64,7 +62,6 @@ export function getFilteredTasks(statusKey) {
     if (valA > valB) return activeSort.dir === 'asc' ? 1 : -1;
     return 0;
   });
-  return [...sorted.filter(t => !isDone(t)), ...sorted.filter(t => isDone(t))];
 }
 
 // ---- Board group by ----

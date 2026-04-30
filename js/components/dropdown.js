@@ -1,4 +1,10 @@
-import { STATUSES, PRIORITY_META, FLAG_SVG } from '../modules/constants.js';
+import { STATUSES, PRIORITY_META, FLAG_SVG, DONE_STATUSES } from '../modules/constants.js';
+
+const ALL_STATUSES = [
+  ...STATUSES,
+  { key: 'complete', label: 'Complete', shortLabel: 'Complete' },
+  { key: 'canceled', label: 'Canceled', shortLabel: 'Canceled' },
+];
 import { getTasks, persistTasks, getExpanded, persistExpanded, tagPillStyle } from '../modules/state.js';
 import { openRecurringDeleteDialog } from './modal.js';
 
@@ -52,7 +58,7 @@ export function openStatusDropdown(anchor, taskId, onChanged) {
   const dd = document.createElement('div');
   dd.className = 'inline-dropdown';
   const tasks = getTasks();
-  STATUSES.forEach(s => {
+  ALL_STATUSES.forEach(s => {
     const item = document.createElement('div');
     item.className = 'inline-dropdown-item';
     const dot = document.createElement('span');
@@ -70,9 +76,11 @@ export function openStatusDropdown(anchor, taskId, onChanged) {
         } else {
           t.status = s.key;
         }
-        getExpanded()[s.key] = true;
+        if (!DONE_STATUSES.includes(s.key)) {
+          getExpanded()[s.key] = true;
+          persistExpanded();
+        }
         persistTasks();
-        persistExpanded();
         onChanged?.();
       }
       closeAllInlineDropdowns();
