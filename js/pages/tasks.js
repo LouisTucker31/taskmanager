@@ -1,9 +1,10 @@
-import { STATUSES, PRIORITY_META, FLAG_SVG } from '../modules/constants.js';
+import { STATUSES, PRIORITY_META, PRIORITY_ORDER, FLAG_SVG } from '../modules/constants.js';
 import {
   getTasks, setTasks, persistTasks,
   getExpanded, persistExpanded,
   getFilteredTasks, getSearchQuery, setSearchQuery,
   getActiveSort, setActiveSort,
+  getGroupBy, setGroupBy,
   isSelectionMode, getSelectedIds,
   enterSelectionMode, clearSelectionMode, toggleSelectionId,
   tagPillStyle, pruneTagColors,
@@ -24,9 +25,75 @@ function switchPage(page) {
 // ---- Render ----
 
 export function renderTasks() {
+  const groupBy = getGroupBy();
+  if (groupBy === 'status') {
+    _renderByStatus();
+  } else {
+    _renderByGroup(groupBy);
+  }
+}
+
+function _applySearch(tasks, searchQuery) {
+  if (!searchQuery) return tasks;
+  return tasks.filter(t => {
+    if (t.name.toLowerCase().includes(searchQuery)) return true;
+    if (t.tags.some(tag => tag.toLowerCase().includes(searchQuery))) return true;
+    if (t.priority && PRIORITY_META[t.priority]?.label.toLowerCase().includes(searchQuery)) return true;
+    if (t.due) {
+      const fmt = formatDate(t.due);
+      if (fmt.text.toLowerCase().includes(searchQuery)) return true;
+      const months = ['january','february','march','april','may','june',
+                      'july','august','september','october','november','december'];
+      const [y, m] = t.due.split('-').map(Number);
+      if (months[m-1].includes(searchQuery)) return true;
+      if (String(y).includes(searchQuery)) return true;
+      if (t.due.includes(searchQuery)) return true;
+    }
+    return false;
+  });
+}
+
+function _buildSectionBody(tasks, searchQuery, allCount, sectionKey, statusKeyForAdd) {
+  const body = document.createElement('div');
+  body.className = 'section-body';
+
+  const tableHead = document.createElement('div');
+  tableHead.className = 'task-table-header';
+  tableHead.innerHTML = '<span>Name</span><span>Tag</span><span>Priority</span><span>Due Date</span><span></span>';
+  body.appendChild(tableHead);
+
+  const searched = _applySearch(tasks, searchQuery);
+
+  if (searched.length === 0 && allCount > 0) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-section-hint';
+    hint.textContent = searchQuery ? 'No tasks match your search.' : 'No tasks match the current sort.';
+    body.appendChild(hint);
+  } else {
+    searched.forEach(task => body.appendChild(buildTaskRow(task)));
+  }
+
+  const addRow = document.createElement('div');
+  addRow.className = 'inline-add-row';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'inline-add-input';
+  input.placeholder = allCount === 0 ? 'Type a task and press Enter…' : 'Add another task…';
+  input.autocomplete = 'off';
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmInlineAdd(input, statusKeyForAdd);
+    if (e.key === 'Escape') input.blur();
+  });
+  input.addEventListener('blur', () => confirmInlineAdd(input, statusKeyForAdd));
+  addRow.appendChild(input);
+  body.appendChild(addRow);
+
+  return body;
+}
+
+function _renderByStatus() {
   const container = document.getElementById('listsContainer');
   container.innerHTML = '';
-
   const searchQuery = getSearchQuery();
 
   STATUSES.forEach(status => {
@@ -59,61 +126,165 @@ export function renderTasks() {
     section.appendChild(header);
 
     if (isOpen) {
-      const body = document.createElement('div');
-      body.className = 'section-body';
-
-      const tableHead = document.createElement('div');
-      tableHead.className = 'task-table-header';
-      tableHead.innerHTML = '<span>Name</span><span>Tag</span><span>Priority</span><span>Due Date</span><span></span>';
-      body.appendChild(tableHead);
-
-      const searched = searchQuery
-        ? filtered.filter(t => {
-            if (t.name.toLowerCase().includes(searchQuery)) return true;
-            if (t.tags.some(tag => tag.toLowerCase().includes(searchQuery))) return true;
-            if (t.priority && PRIORITY_META[t.priority]?.label.toLowerCase().includes(searchQuery)) return true;
-            if (t.due) {
-              const fmt = formatDate(t.due);
-              if (fmt.text.toLowerCase().includes(searchQuery)) return true;
-              const months = ['january','february','march','april','may','june',
-                              'july','august','september','october','november','december'];
-              const [y, m] = t.due.split('-').map(Number);
-              if (months[m-1].includes(searchQuery)) return true;
-              if (String(y).includes(searchQuery)) return true;
-              if (t.due.includes(searchQuery)) return true;
-            }
-            return false;
-          })
-        : filtered;
-
-      if (searched.length === 0 && allForStatus.length > 0) {
-        const hint = document.createElement('div');
-        hint.className = 'empty-section-hint';
-        hint.textContent = searchQuery ? 'No tasks match your search.' : 'No tasks match the current sort.';
-        body.appendChild(hint);
-      } else {
-        searched.forEach(task => body.appendChild(buildTaskRow(task)));
-      }
-
-      const addRow = document.createElement('div');
-      addRow.className = 'inline-add-row';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'inline-add-input';
-      input.placeholder = allForStatus.length === 0 ? 'Type a task and press Enter…' : 'Add another task…';
-      input.autocomplete = 'off';
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') confirmInlineAdd(input, status.key);
-        if (e.key === 'Escape') input.blur();
-      });
-      input.addEventListener('blur', () => confirmInlineAdd(input, status.key));
-      addRow.appendChild(input);
-      body.appendChild(addRow);
-
-      section.appendChild(body);
+      section.appendChild(_buildSectionBody(filtered, searchQuery, allForStatus.length, status.key, status.key));
     }
 
     container.appendChild(section);
+  });
+}
+
+function _renderByGroup(groupBy) {
+  const container = document.getElementById('listsContainer');
+  container.innerHTML = '';
+  const searchQuery = getSearchQuery();
+  const allTasks = getTasks();
+
+  // Build sorted task list
+  const sorted = _sortTasks([...allTasks]);
+
+  // Determine groups and their display info
+  let groups; // [{ key, label, headerHtml, tasks }]
+
+  if (groupBy === 'tag') {
+    const tagMap = {};
+    sorted.forEach(t => {
+      const tags = t.tags.length > 0 ? t.tags : ['__none__'];
+      tags.forEach(tag => {
+        if (!tagMap[tag]) tagMap[tag] = [];
+        tagMap[tag].push(t);
+      });
+    });
+    const tagKeys = Object.keys(tagMap).sort((a, b) => {
+      if (a === '__none__') return 1;
+      if (b === '__none__') return -1;
+      return a.localeCompare(b);
+    });
+    groups = tagKeys.map(tag => ({
+      key: 'group-tag-' + tag,
+      label: tag === '__none__' ? 'No Tag' : tag,
+      headerHtml: tag === '__none__'
+        ? `<span class="group-label-text group-label-none">No Tag</span>`
+        : `<span class="tag-pill" style="${tagPillStyle(tag)}">${tag}</span>`,
+      tasks: tagMap[tag],
+    }));
+
+  } else if (groupBy === 'priority') {
+    const priOrder = ['urgent', 'high', 'normal', 'low', 'none'];
+    const priMap = {};
+    sorted.forEach(t => {
+      const p = t.priority || 'none';
+      if (!priMap[p]) priMap[p] = [];
+      priMap[p].push(t);
+    });
+    groups = priOrder
+      .filter(p => priMap[p] && priMap[p].length > 0)
+      .map(p => {
+        const meta = PRIORITY_META[p];
+        const labelHtml = p !== 'none'
+          ? FLAG_SVG.replace('FLAG_CLASS', p) + `<span class="group-label-text">${meta.label}</span>`
+          : `<span class="group-label-text group-label-none">${meta.label}</span>`;
+        return {
+          key: 'group-pri-' + p,
+          label: meta.label,
+          headerHtml: labelHtml,
+          tasks: priMap[p],
+        };
+      });
+
+  } else if (groupBy === 'due') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const endOfWeek = new Date(today); endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    function getBucket(t) {
+      if (!t.due) return 'none';
+      const [y, m, d] = t.due.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (dt < today) return 'overdue';
+      if (dt.getTime() === today.getTime()) return 'today';
+      if (dt.getTime() === tomorrow.getTime()) return 'tomorrow';
+      if (dt <= endOfWeek) return 'this-week';
+      if (dt <= endOfMonth) return 'this-month';
+      return 'later';
+    }
+
+    const bucketOrder = ['overdue', 'today', 'tomorrow', 'this-week', 'this-month', 'later', 'none'];
+    const bucketLabels = {
+      overdue: 'Overdue', today: 'Today', tomorrow: 'Tomorrow',
+      'this-week': 'This Week', 'this-month': 'This Month', later: 'Later', none: 'No Due Date',
+    };
+    const bucketMap = {};
+    sorted.forEach(t => {
+      const b = getBucket(t);
+      if (!bucketMap[b]) bucketMap[b] = [];
+      bucketMap[b].push(t);
+    });
+    groups = bucketOrder
+      .filter(b => bucketMap[b] && bucketMap[b].length > 0)
+      .map(b => ({
+        key: 'group-due-' + b,
+        label: bucketLabels[b],
+        headerHtml: b === 'overdue'
+          ? `<span class="group-label-text group-label-overdue">${bucketLabels[b]}</span>`
+          : b === 'none'
+            ? `<span class="group-label-text group-label-none">${bucketLabels[b]}</span>`
+            : `<span class="group-label-text">${bucketLabels[b]}</span>`,
+        tasks: bucketMap[b],
+      }));
+  }
+
+  if (!groups || groups.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-section-hint';
+    empty.textContent = 'No tasks.';
+    container.appendChild(empty);
+    return;
+  }
+
+  groups.forEach(group => {
+    const isOpen = getExpanded()[group.key] !== false; // default open
+    const section = document.createElement('div');
+    section.className = 'section';
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <div class="section-toggle ${isOpen ? 'open' : ''}">
+        <svg viewBox="0 0 8 12" fill="none"><path d="M2 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="section-name-badge">${group.headerHtml}</div>
+      <span class="section-count">${group.tasks.length}</span>
+    `;
+    header.querySelector('.section-toggle').addEventListener('click', () => toggleSection(group.key));
+    section.appendChild(header);
+
+    if (isOpen) {
+      section.appendChild(_buildSectionBody(group.tasks, searchQuery, group.tasks.length, group.key, 'todo'));
+    }
+
+    container.appendChild(section);
+  });
+}
+
+function _sortTasks(list) {
+  const s = getActiveSort();
+  if (s.type === 'created') return list.sort((a, b) => a.createdAt - b.createdAt);
+  return list.sort((a, b) => {
+    let valA, valB;
+    if (s.type === 'priority') {
+      valA = PRIORITY_ORDER[a.priority] ?? 99;
+      valB = PRIORITY_ORDER[b.priority] ?? 99;
+    } else if (s.type === 'due') {
+      valA = a.due || '9999-99-99';
+      valB = b.due || '9999-99-99';
+    } else if (s.type === 'tag') {
+      valA = (a.tags[0] || 'zzz').toLowerCase();
+      valB = (b.tags[0] || 'zzz').toLowerCase();
+    }
+    if (valA < valB) return s.dir === 'asc' ? -1 : 1;
+    if (valA > valB) return s.dir === 'asc' ? 1 : -1;
+    return 0;
   });
 }
 
@@ -527,6 +698,15 @@ export function initTasksPage() {
     document.getElementById('searchInput').value = '';
     document.getElementById('searchClear').style.display = 'none';
     renderTasks();
+  });
+
+  document.querySelectorAll('.group-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setGroupBy(btn.dataset.group);
+      document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTasks();
+    });
   });
 
   document.querySelectorAll('.sort-btn').forEach(btn => {

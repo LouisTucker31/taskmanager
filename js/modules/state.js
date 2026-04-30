@@ -34,6 +34,13 @@ let activeSort = { type: 'created', dir: 'asc' };
 export function getActiveSort() { return activeSort; }
 export function setActiveSort(s) { activeSort = s; }
 
+// ---- Group by ----
+
+let activeGroupBy = 'status'; // 'status' | 'tag' | 'priority' | 'due'
+
+export function getGroupBy() { return activeGroupBy; }
+export function setGroupBy(g) { activeGroupBy = g; }
+
 export function getFilteredTasks(statusKey) {
   let list = tasks.filter(t => t.status === statusKey);
   if (activeSort.type === 'created') {
