@@ -11,7 +11,7 @@ import {
   enterSelectionMode, clearSelectionMode, toggleSelectionId,
   tagPillStyle, pruneTagColors,
 } from '../modules/state.js';
-import { formatDate, uid, parseTags, stripTags, normaliseTags, dateToStr } from '../modules/utils.js';
+import { formatDate, uid, parseTags, stripTags, normaliseTags, dateToStr, esc } from '../modules/utils.js';
 import { showUndoToast } from '../components/toast.js';
 import {
   closeAllInlineDropdowns,
@@ -364,29 +364,37 @@ export function renderEvents() {
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+  function _fmtDate(dateStr) {
+    if (!dateStr) return '—';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return `${d} ${MONTHS[m-1]} ${y}`;
+  }
+
+  function _fmtTime(ev) {
+    if (ev.allDay) return 'All day';
+    if (ev.startTime) return ev.startTime.slice(0,5) + (ev.endTime ? ' – ' + ev.endTime.slice(0,5) : '');
+    return '—';
+  }
+
   function _buildEventRow(ev) {
     const row = document.createElement('div');
     row.className = 'event-row';
     row.dataset.id = ev.id;
 
     const isPast = ev.date && ev.date < todayStr;
-
-    let dateLabel = '—';
-    if (ev.date) {
-      const [y, m, d] = ev.date.split('-').map(Number);
-      dateLabel = `${d} ${MONTHS[m-1]} ${y}`;
-    }
-    const timeLabel = ev.time ? ev.time.slice(0,5) : '—';
-    const durationLabel = ev.duration ? `${ev.duration} min` : '—';
+    const dateLabel = _fmtDate(ev.date);
+    const endLabel  = ev.endDate && ev.endDate !== ev.date ? ` – ${_fmtDate(ev.endDate)}` : '';
+    const timeLabel = _fmtTime(ev);
 
     row.innerHTML = `
       <div class="event-row-dot ${isPast ? 'past' : ''}"></div>
       <div class="event-row-main">
         <span class="event-row-title ${isPast ? 'event-past' : ''}">${esc(ev.title)}</span>
+        ${(ev.tags && ev.tags.length) ? `<span class="event-row-tags">${ev.tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('')}</span>` : ''}
       </div>
-      <div class="event-row-date">${dateLabel}</div>
+      <div class="event-row-date">${dateLabel}${endLabel}</div>
       <div class="event-row-time">${timeLabel}</div>
-      <div class="event-row-duration">${durationLabel}</div>
+      <div class="event-row-guests">${ev.guests && ev.guests.length ? ev.guests.slice(0,2).map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('') + (ev.guests.length > 2 ? `<span class="event-guest-more">+${ev.guests.length - 2}</span>` : '') : '<span style="color:var(--text-xmuted)">—</span>'}</div>
       <div class="event-row-actions">
         <button class="three-dot-btn event-dot-btn" aria-label="Event options">
           <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="13" r="1.2"/></svg>
@@ -426,7 +434,7 @@ export function renderEvents() {
 
     const tableHead = document.createElement('div');
     tableHead.className = 'event-table-header';
-    tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Duration</span><span></span>';
+    tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Guests</span><span></span>';
     container.appendChild(tableHead);
 
     evList.forEach(ev => container.appendChild(_buildEventRow(ev)));

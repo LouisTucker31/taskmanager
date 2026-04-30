@@ -245,9 +245,58 @@
 .event-row-title { font-size: 13.5px; font-weight: 400; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .event-past { color: var(--text-muted); }
 
-.event-row-date, .event-row-time, .event-row-duration {
-  font-size: 12.5px; color: var(--text-muted); font-family: 'DM Mono', monospace;
+.event-row-date, .event-row-time, .event-row-guests {
+  font-size: 12px; color: var(--text-muted); font-family: 'DM Mono', monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+.event-row-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-left: 6px; flex-shrink: 0; }
+
+.event-guest-pill {
+  display: inline-block; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 999px; font-size: 11px; padding: 1px 8px;
+  color: var(--text-muted); font-family: 'Poppins', sans-serif; white-space: nowrap;
+}
+.event-guest-more {
+  font-size: 11px; color: var(--text-xmuted); padding: 1px 4px;
+}
+
+/* ---- Event form: all-day toggle ---- */
+.evt-toggle-wrap {
+  position: relative; display: inline-flex; align-items: center;
+  width: 40px; height: 22px; cursor: pointer;
+}
+.evt-toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+.evt-toggle-slider {
+  position: absolute; inset: 0; background: var(--border);
+  border-radius: 999px; transition: background 0.2s;
+}
+.evt-toggle-slider::before {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; top: 3px; left: 3px;
+  transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.evt-toggle-wrap input:checked + .evt-toggle-slider { background: var(--accent); }
+.evt-toggle-wrap input:checked + .evt-toggle-slider::before { transform: translateX(18px); }
+
+/* ---- Event form: guest chips ---- */
+.evt-guest-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
+.event-guest-chip-edit {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 999px; font-size: 12px; padding: 2px 8px 2px 10px;
+  color: var(--text); font-family: 'Poppins', sans-serif;
+}
+.evt-guest-remove {
+  background: none; border: none; cursor: pointer; color: var(--text-xmuted);
+  font-size: 14px; line-height: 1; padding: 0 1px; transition: color 0.1s;
+}
+.evt-guest-remove:hover { color: #ef4444; }
+
+/* ---- Event view: tag row & guest list ---- */
+.evt-tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.evt-guest-list { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .event-row-actions { display: flex; justify-content: center; }
 .event-dot-btn {

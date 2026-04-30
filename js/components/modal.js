@@ -585,30 +585,60 @@ export function closeEventPopup() {
   document.getElementById('eventPopupOverlay').style.display = 'none';
 }
 
+const EVT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function _fmtEvtDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${d} ${EVT_MONTHS[m-1]} ${y}`;
+}
+
 function _renderEventView(event) {
   const overlay = document.getElementById('eventPopupOverlay');
   const popup   = document.getElementById('eventPopup');
 
-  const [y, m, d] = event.date.split('-').map(Number);
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dateLabel = `${d} ${months[m-1]} ${y}`;
-  const timeLabel = event.time || null;
-  const durationLabel = event.duration ? `${event.duration} min` : null;
+  const dateLabel = _fmtEvtDate(event.date);
+  const endLabel  = event.endDate && event.endDate !== event.date ? ` – ${_fmtEvtDate(event.endDate)}` : '';
+
+  let timeLabel = null;
+  if (event.allDay) {
+    timeLabel = 'All day';
+  } else if (event.startTime) {
+    timeLabel = event.startTime.slice(0,5) + (event.endTime ? ` – ${event.endTime.slice(0,5)}` : '');
+  }
+
+  const tagPills = (event.tags || []).map(t => {
+    import('../modules/state.js').then(({ tagPillStyle }) => {});
+    return `<span class="tag-pill" style="">${esc(t)}</span>`;
+  });
 
   popup.innerHTML = `
     <button class="task-popup-close" id="evtViewClose">&times;</button>
     <div class="evt-view-type">Event</div>
     <h2 class="tpop-name">${esc(event.title)}</h2>
     <div class="tpop-meta">
-      <div class="tpop-row"><span class="tpop-label">Date</span><span class="tpop-value">${dateLabel}</span></div>
+      <div class="tpop-row"><span class="tpop-label">Date</span><span class="tpop-value">${dateLabel}${endLabel}</span></div>
       ${timeLabel ? `<div class="tpop-row"><span class="tpop-label">Time</span><span class="tpop-value">${timeLabel}</span></div>` : ''}
-      ${durationLabel ? `<div class="tpop-row"><span class="tpop-label">Duration</span><span class="tpop-value">${durationLabel}</span></div>` : ''}
+      ${event.tags && event.tags.length ? `<div class="tpop-row"><span class="tpop-label">Tags</span><span class="tpop-value evt-tag-row" id="evtViewTags"></span></div>` : ''}
+      ${event.guests && event.guests.length ? `<div class="tpop-row evt-notes-row"><span class="tpop-label">Guests</span><span class="tpop-value evt-guest-list" id="evtViewGuests"></span></div>` : ''}
       ${event.notes ? `<div class="tpop-row evt-notes-row"><span class="tpop-label">Notes</span><span class="tpop-value evt-notes-val">${esc(event.notes)}</span></div>` : ''}
     </div>
     <div class="tpop-actions">
       <button class="tpop-edit-btn" id="evtViewEdit">Edit</button>
     </div>
   `;
+
+  // Inject tag pills using live tagPillStyle
+  if (event.tags && event.tags.length) {
+    import('../modules/state.js').then(({ tagPillStyle }) => {
+      const tagEl = popup.querySelector('#evtViewTags');
+      if (tagEl) tagEl.innerHTML = event.tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('');
+    });
+  }
+  if (event.guests && event.guests.length) {
+    const guestEl = popup.querySelector('#evtViewGuests');
+    if (guestEl) guestEl.innerHTML = event.guests.map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('');
+  }
 
   overlay.style.display = 'flex';
   popup.querySelector('#evtViewClose').addEventListener('click', closeEventPopup);
@@ -619,32 +649,66 @@ function _renderEventForm(event, prefillDate) {
   const overlay = document.getElementById('eventPopupOverlay');
   const popup   = document.getElementById('eventPopup');
   const isEdit  = !!event;
-  const dateVal = event ? event.date : (prefillDate || '');
+
+  const dateVal      = isEdit ? (event.date || '') : (prefillDate || '');
+  const endDateVal   = isEdit ? (event.endDate || '') : '';
+  const allDay       = isEdit ? !!event.allDay : true;
+  const startTimeVal = isEdit ? (event.startTime || '') : '';
+  const endTimeVal   = isEdit ? (event.endTime || '') : '';
+  const tagsVal      = isEdit ? (event.tags || []).join(' ') : '';
+  const notesVal     = isEdit ? (event.notes || '') : '';
 
   popup.innerHTML = `
     <button class="task-popup-close" id="evtFormClose">&times;</button>
     <input type="text" class="tpop-name-input" id="evtTitleInput" value="${isEdit ? esc(event.title) : ''}" placeholder="Event title…" autocomplete="off" />
     <div class="tpop-form-rows">
       <div class="tpop-row">
-        <span class="tpop-label">Date</span>
+        <span class="tpop-label">Start Date</span>
         <input type="date" class="tpop-field-input" id="evtDateInput" value="${dateVal}" />
       </div>
       <div class="tpop-row">
-        <span class="tpop-label">Time</span>
-        <input type="time" class="tpop-field-input" id="evtTimeInput" value="${isEdit && event.time ? event.time : ''}" />
+        <span class="tpop-label">End Date</span>
+        <input type="date" class="tpop-field-input" id="evtEndDateInput" value="${endDateVal}" />
       </div>
       <div class="tpop-row">
-        <span class="tpop-label">Duration (min)</span>
-        <input type="number" class="tpop-field-input" id="evtDurationInput" value="${isEdit && event.duration ? event.duration : ''}" placeholder="e.g. 60" min="1" style="width:100px" />
+        <span class="tpop-label">All Day</span>
+        <label class="evt-toggle-wrap">
+          <input type="checkbox" id="evtAllDayToggle" ${allDay ? 'checked' : ''} />
+          <span class="evt-toggle-slider"></span>
+        </label>
+      </div>
+      <div id="evtTimeRows" style="${allDay ? 'display:none' : ''}">
+        <div class="tpop-row">
+          <span class="tpop-label">Start Time</span>
+          <input type="time" class="tpop-field-input" id="evtStartTimeInput" value="${startTimeVal}" />
+        </div>
+        <div class="tpop-row">
+          <span class="tpop-label">End Time</span>
+          <input type="time" class="tpop-field-input" id="evtEndTimeInput" value="${endTimeVal}" />
+        </div>
+      </div>
+      <div class="tpop-row">
+        <span class="tpop-label">Tags</span>
+        <div style="position:relative;flex:1">
+          <input type="text" class="tpop-field-input" id="evtTagInput" value="${esc(tagsVal)}" placeholder="tag1 tag2…" autocomplete="off" style="width:100%" />
+          <div class="tag-suggest-box" id="evtTagSuggest" style="display:none"></div>
+        </div>
+      </div>
+      <div class="tpop-row" style="align-items:flex-start">
+        <span class="tpop-label" style="padding-top:6px">Guests</span>
+        <div style="flex:1">
+          <div class="evt-guest-chips" id="evtGuestChips"></div>
+          <input type="text" class="tpop-field-input" id="evtGuestInput" placeholder="Add guest email or name, press Enter…" autocomplete="off" style="width:100%;margin-top:4px" />
+        </div>
       </div>
       <div class="tpop-row" style="align-items:flex-start">
         <span class="tpop-label" style="padding-top:6px">Notes</span>
-        <textarea class="tpop-field-input" id="evtNotesInput" placeholder="Optional notes…" rows="3" style="resize:vertical;min-height:60px">${isEdit && event.notes ? esc(event.notes) : ''}</textarea>
+        <textarea class="tpop-field-input" id="evtNotesInput" placeholder="Optional notes…" rows="3" style="resize:vertical;min-height:60px;width:100%">${esc(notesVal)}</textarea>
       </div>
     </div>
     <div class="task-popup-actions">
       ${isEdit ? `<button class="btn-delete" id="evtDeleteBtn">Delete</button>` : ''}
-      <button class="btn-cancel" id="evtCancelBtn">${isEdit ? 'Cancel' : 'Cancel'}</button>
+      <button class="btn-cancel" id="evtCancelBtn">Cancel</button>
       <button class="btn-add-confirm" id="evtSaveBtn">${isEdit ? 'Save' : 'Add Event'}</button>
     </div>
   `;
@@ -652,12 +716,116 @@ function _renderEventForm(event, prefillDate) {
   overlay.style.display = 'flex';
   setTimeout(() => popup.querySelector('#evtTitleInput')?.focus(), 50);
 
+  // All day toggle
+  const allDayToggle = popup.querySelector('#evtAllDayToggle');
+  const timeRows     = popup.querySelector('#evtTimeRows');
+  allDayToggle.addEventListener('change', () => {
+    timeRows.style.display = allDayToggle.checked ? 'none' : '';
+  });
+
+  // Guest chip management
+  let guests = isEdit ? [...(event.guests || [])] : [];
+  const guestChips = popup.querySelector('#evtGuestChips');
+  const guestInput = popup.querySelector('#evtGuestInput');
+
+  function _renderGuestChips() {
+    guestChips.innerHTML = guests.map((g, i) =>
+      `<span class="event-guest-chip-edit">${esc(g)}<button class="evt-guest-remove" data-i="${i}">&times;</button></span>`
+    ).join('');
+    guestChips.querySelectorAll('.evt-guest-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        guests.splice(parseInt(btn.dataset.i), 1);
+        _renderGuestChips();
+      });
+    });
+  }
+  _renderGuestChips();
+
+  guestInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = guestInput.value.trim().replace(/,$/, '');
+      if (val && !guests.includes(val)) {
+        guests.push(val);
+        _renderGuestChips();
+      }
+      guestInput.value = '';
+    }
+  });
+  guestInput.addEventListener('blur', () => {
+    const val = guestInput.value.trim();
+    if (val && !guests.includes(val)) {
+      guests.push(val);
+      _renderGuestChips();
+      guestInput.value = '';
+    }
+  });
+
+  // Tag autocomplete (same pattern as task tags)
+  const tagInput   = popup.querySelector('#evtTagInput');
+  const suggestBox = popup.querySelector('#evtTagSuggest');
+  let suppressTagBlur = false;
+
+  function _getAllTags() {
+    const map = {};
+    import('../modules/state.js').then(({ getTasks, getEvents }) => {
+      getTasks().forEach(t => t.tags.forEach(tag => { map[tag] = true; }));
+      getEvents().forEach(ev => (ev.tags || []).forEach(tag => { map[tag] = true; }));
+    });
+    return Object.keys(map).sort();
+  }
+
+  function _getLastWord() {
+    const parts = tagInput.value.trimEnd().split(/\s+/);
+    return parts[parts.length - 1] || '';
+  }
+
+  function _renderTagSuggestions() {
+    const word = _getLastWord().replace(/^#+/, '').toLowerCase();
+    suggestBox.innerHTML = '';
+    if (!word) { suggestBox.style.display = 'none'; return; }
+    import('../modules/state.js').then(({ getTasks, getEvents, tagPillStyle }) => {
+      const allTags = {};
+      getTasks().forEach(t => t.tags.forEach(tag => { allTags[tag] = true; }));
+      getEvents().forEach(ev => (ev.tags || []).forEach(tag => { allTags[tag] = true; }));
+      const typed = normaliseTags(tagInput.value);
+      const matches = Object.keys(allTags).filter(t => t.startsWith(word) && !typed.includes(t));
+      if (matches.length === 0) { suggestBox.style.display = 'none'; return; }
+      matches.slice(0, 6).forEach(tag => {
+        const item = document.createElement('div');
+        item.className = 'tag-suggest-item';
+        const pill = document.createElement('span');
+        pill.className = 'tag-pill';
+        pill.style.cssText = tagPillStyle(tag);
+        pill.textContent = tag;
+        item.appendChild(pill);
+        item.addEventListener('mousedown', () => { suppressTagBlur = true; });
+        item.addEventListener('click', () => {
+          const parts = tagInput.value.trimEnd().split(/\s+/);
+          parts[parts.length - 1] = tag;
+          tagInput.value = parts.join(' ') + ' ';
+          suggestBox.style.display = 'none';
+          suppressTagBlur = false;
+          tagInput.focus();
+          _renderTagSuggestions();
+        });
+        suggestBox.appendChild(item);
+      });
+      suggestBox.style.display = 'block';
+    });
+  }
+
+  tagInput.addEventListener('input', _renderTagSuggestions);
+  tagInput.addEventListener('blur', () => { if (!suppressTagBlur) suggestBox.style.display = 'none'; });
+
+  // Cancel / close
   popup.querySelector('#evtFormClose').addEventListener('click', closeEventPopup);
   popup.querySelector('#evtCancelBtn').addEventListener('click', () => {
     if (isEdit) _renderEventView(event);
     else closeEventPopup();
   });
 
+  // Delete
   if (isEdit) {
     popup.querySelector('#evtDeleteBtn').addEventListener('click', () => {
       const snapshot = [...getEvents()];
@@ -673,24 +841,42 @@ function _renderEventForm(event, prefillDate) {
     });
   }
 
+  // Save
   popup.querySelector('#evtSaveBtn').addEventListener('click', () => {
     const title = popup.querySelector('#evtTitleInput').value.trim();
-    if (!title) return;
-    const date     = popup.querySelector('#evtDateInput').value || null;
-    const time     = popup.querySelector('#evtTimeInput').value || null;
-    const duration = parseInt(popup.querySelector('#evtDurationInput').value) || null;
-    const notes    = popup.querySelector('#evtNotesInput').value.trim() || null;
+    if (!title) { popup.querySelector('#evtTitleInput').focus(); return; }
+
+    // Flush any pending guest input
+    const pendingGuest = guestInput.value.trim();
+    if (pendingGuest && !guests.includes(pendingGuest)) guests.push(pendingGuest);
+
+    const date      = popup.querySelector('#evtDateInput').value || null;
+    const endDate   = popup.querySelector('#evtEndDateInput').value || null;
+    const isAllDay  = popup.querySelector('#evtAllDayToggle').checked;
+    const startTime = isAllDay ? null : (popup.querySelector('#evtStartTimeInput').value || null);
+    const endTime   = isAllDay ? null : (popup.querySelector('#evtEndTimeInput').value || null);
+    const tags      = normaliseTags(popup.querySelector('#evtTagInput').value);
+    const notes     = popup.querySelector('#evtNotesInput').value.trim() || null;
 
     if (isEdit) {
-      event.title    = title;
-      event.date     = date;
-      event.time     = time;
-      event.duration = duration;
-      event.notes    = notes;
+      event.title     = title;
+      event.date      = date;
+      event.endDate   = endDate && endDate !== date ? endDate : null;
+      event.allDay    = isAllDay;
+      event.startTime = startTime;
+      event.endTime   = endTime;
+      event.tags      = tags;
+      event.guests    = guests;
+      event.notes     = notes;
       persistEvents();
       _renderEventView(event);
     } else {
-      const newEvent = { id: uid(), title, date, time, duration, notes, createdAt: Date.now() };
+      const newEvent = {
+        id: uid(), title, date,
+        endDate: endDate && endDate !== date ? endDate : null,
+        allDay: isAllDay, startTime, endTime,
+        tags, guests, notes, createdAt: Date.now(),
+      };
       getEvents().push(newEvent);
       persistEvents();
       closeEventPopup();
@@ -699,7 +885,6 @@ function _renderEventForm(event, prefillDate) {
   });
 
   popup.querySelector('#evtTitleInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') popup.querySelector('#evtSaveBtn').click();
     if (e.key === 'Escape') closeEventPopup();
   });
 }

@@ -153,7 +153,8 @@ function _appendChip(cell, t) {
 
   if (t._isEvent) {
     chip.className = 'cal-task-chip cal-event-chip';
-    chip.textContent = (t.time ? t.time.slice(0, 5) + ' ' : '') + t.title;
+    const timePrefix = (!t.allDay && t.startTime) ? t.startTime.slice(0,5) + ' ' : '';
+    chip.textContent = timePrefix + t.title;
     const realEvent = getEvents().find(e => e.id === t.id) || t;
     chip.addEventListener('click', (e) => { e.stopPropagation(); openEventPopup(realEvent); });
     cell.appendChild(chip);
