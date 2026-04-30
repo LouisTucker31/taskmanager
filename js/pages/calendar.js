@@ -1,8 +1,7 @@
 import { MONTH_NAMES, TAG_COLORS, TAG_COLORS_DARK } from '../modules/constants.js';
-import { getTasks, getTagColorIndex } from '../modules/state.js';
+import { getTasks, getTagColorIndex, getEvents } from '../modules/state.js';
 import { dateToStr } from '../modules/utils.js';
-import { openTaskPopup } from '../components/modal.js';
-import { openAddFromCal } from '../components/modal.js';
+import { openTaskPopup, openCalChoice, openEventPopup } from '../components/modal.js';
 
 const calToday = new Date();
 let calYear  = calToday.getFullYear();
@@ -71,6 +70,12 @@ export function renderCalendar() {
     tasksByDate[ds].push(entry);
   }
 
+  // Add events to the date map
+  getEvents().forEach(ev => {
+    if (!ev.date) return;
+    _addToDate(ev.date, { ...ev, _isEvent: true });
+  });
+
   getTasks().filter(t => t.status !== 'complete' && t.status !== 'canceled').forEach(t => {
     if (!t.due) return;
     if (t.recurrence) {
@@ -138,13 +143,23 @@ export function renderCalendar() {
       cell.appendChild(more);
     }
 
-    cell.addEventListener('click', () => openAddFromCal(dateStr));
+    cell.addEventListener('click', () => openCalChoice(dateStr));
     grid.appendChild(cell);
   }
 }
 
 function _appendChip(cell, t) {
   const chip = document.createElement('div');
+
+  if (t._isEvent) {
+    chip.className = 'cal-task-chip cal-event-chip';
+    chip.textContent = (t.time ? t.time.slice(0, 5) + ' ' : '') + t.title;
+    const realEvent = getEvents().find(e => e.id === t.id) || t;
+    chip.addEventListener('click', (e) => { e.stopPropagation(); openEventPopup(realEvent); });
+    cell.appendChild(chip);
+    return;
+  }
+
   const dateForOverdue = t._virtualDate || t.due;
   const isOverdue = dateForOverdue < dateToStr(calToday) && t.status !== 'complete' && t.status !== 'canceled';
   const isDark = document.body.getAttribute('data-theme') === 'dark';
@@ -153,7 +168,6 @@ function _appendChip(cell, t) {
   chip.className = `cal-task-chip status-${t.status}${isOverdue ? ' overdue' : ''}${t.recurrence ? ' recur' : ''}`;
   if (idx !== null) chip.style.cssText = `background:${palette[idx % palette.length].bg};color:${palette[idx % palette.length].text};`;
   chip.textContent = t.name;
-  // Always open the real task (strip virtual wrapper)
   const realTask = getTasks().find(r => r.id === t.id) || t;
   chip.addEventListener('click', (e) => { e.stopPropagation(); openTaskPopup(realTask, t._virtualDate); });
   cell.appendChild(chip);

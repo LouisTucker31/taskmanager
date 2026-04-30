@@ -1,5 +1,5 @@
 import { STATUSES, PRIORITY_META, FLAG_SVG } from '../modules/constants.js';
-import { getTasks, setTasks, persistTasks, getExpanded, persistExpanded } from '../modules/state.js';
+import { getTasks, setTasks, persistTasks, getExpanded, persistExpanded, getEvents, setEvents, persistEvents } from '../modules/state.js';
 import { formatDate, esc, dueBtnLabel, parseTags, stripTags, uid, dateToStr, normaliseTags } from '../modules/utils.js';
 import { showUndoToast } from './toast.js';
 
@@ -499,6 +499,14 @@ export function initModalKeyboard() {
   document.getElementById('addFromCalOverlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeAddFromCal();
   });
+
+  document.getElementById('calChoiceOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeCalChoice();
+  });
+
+  document.getElementById('eventPopupOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeEventPopup();
+  });
 }
 
 // Lazy refresh — avoids circular deps at module parse time
@@ -510,8 +518,188 @@ function _refreshAll() {
     import('../pages/gantt.js'),
   ]).then(([t, c, b, g]) => {
     t.renderTasks();
+    t.renderEvents();
     c.renderCalendar();
     b.renderBoard();
     g.renderGantt();
+  });
+}
+
+// ---- Calendar day choice popup ----
+
+export function openCalChoice(dateStr) {
+  const overlay = document.getElementById('calChoiceOverlay');
+  const popup   = document.getElementById('calChoicePopup');
+
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = `${d} ${months[m-1]} ${y}`;
+
+  popup.innerHTML = `
+    <button class="task-popup-close" id="calChoiceClose">&times;</button>
+    <div class="cal-choice-date">${label}</div>
+    <div class="cal-choice-title">What would you like to add?</div>
+    <div class="cal-choice-btns">
+      <button class="cal-choice-btn" id="calChoiceTask">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="cal-choice-btn-label">Task</span>
+        <span class="cal-choice-btn-sub">Action item with status &amp; priority</span>
+      </button>
+      <button class="cal-choice-btn" id="calChoiceEvent">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="2" x2="6" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="2" x2="14" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="9" x2="18" y2="9" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span class="cal-choice-btn-label">Event</span>
+        <span class="cal-choice-btn-sub">Something happening at a time</span>
+      </button>
+    </div>
+  `;
+
+  overlay.style.display = 'flex';
+
+  popup.querySelector('#calChoiceClose').addEventListener('click', closeCalChoice);
+  popup.querySelector('#calChoiceTask').addEventListener('click', () => {
+    closeCalChoice();
+    openAddFromCal(dateStr);
+  });
+  popup.querySelector('#calChoiceEvent').addEventListener('click', () => {
+    closeCalChoice();
+    openAddEventModal(dateStr);
+  });
+}
+
+export function closeCalChoice() {
+  document.getElementById('calChoiceOverlay').style.display = 'none';
+}
+
+// ---- Event popup (add / edit / view) ----
+
+export function openAddEventModal(dateStr) {
+  _renderEventForm(null, dateStr);
+}
+
+export function openEventPopup(event) {
+  _renderEventView(event);
+  document.getElementById('eventPopupOverlay').style.display = 'flex';
+}
+
+export function closeEventPopup() {
+  document.getElementById('eventPopupOverlay').style.display = 'none';
+}
+
+function _renderEventView(event) {
+  const overlay = document.getElementById('eventPopupOverlay');
+  const popup   = document.getElementById('eventPopup');
+
+  const [y, m, d] = event.date.split('-').map(Number);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateLabel = `${d} ${months[m-1]} ${y}`;
+  const timeLabel = event.time || null;
+  const durationLabel = event.duration ? `${event.duration} min` : null;
+
+  popup.innerHTML = `
+    <button class="task-popup-close" id="evtViewClose">&times;</button>
+    <div class="evt-view-type">Event</div>
+    <h2 class="tpop-name">${esc(event.title)}</h2>
+    <div class="tpop-meta">
+      <div class="tpop-row"><span class="tpop-label">Date</span><span class="tpop-value">${dateLabel}</span></div>
+      ${timeLabel ? `<div class="tpop-row"><span class="tpop-label">Time</span><span class="tpop-value">${timeLabel}</span></div>` : ''}
+      ${durationLabel ? `<div class="tpop-row"><span class="tpop-label">Duration</span><span class="tpop-value">${durationLabel}</span></div>` : ''}
+      ${event.notes ? `<div class="tpop-row evt-notes-row"><span class="tpop-label">Notes</span><span class="tpop-value evt-notes-val">${esc(event.notes)}</span></div>` : ''}
+    </div>
+    <div class="tpop-actions">
+      <button class="tpop-edit-btn" id="evtViewEdit">Edit</button>
+    </div>
+  `;
+
+  overlay.style.display = 'flex';
+  popup.querySelector('#evtViewClose').addEventListener('click', closeEventPopup);
+  popup.querySelector('#evtViewEdit').addEventListener('click', () => _renderEventForm(event, null));
+}
+
+function _renderEventForm(event, prefillDate) {
+  const overlay = document.getElementById('eventPopupOverlay');
+  const popup   = document.getElementById('eventPopup');
+  const isEdit  = !!event;
+  const dateVal = event ? event.date : (prefillDate || '');
+
+  popup.innerHTML = `
+    <button class="task-popup-close" id="evtFormClose">&times;</button>
+    <input type="text" class="tpop-name-input" id="evtTitleInput" value="${isEdit ? esc(event.title) : ''}" placeholder="Event title…" autocomplete="off" />
+    <div class="tpop-form-rows">
+      <div class="tpop-row">
+        <span class="tpop-label">Date</span>
+        <input type="date" class="tpop-field-input" id="evtDateInput" value="${dateVal}" />
+      </div>
+      <div class="tpop-row">
+        <span class="tpop-label">Time</span>
+        <input type="time" class="tpop-field-input" id="evtTimeInput" value="${isEdit && event.time ? event.time : ''}" />
+      </div>
+      <div class="tpop-row">
+        <span class="tpop-label">Duration (min)</span>
+        <input type="number" class="tpop-field-input" id="evtDurationInput" value="${isEdit && event.duration ? event.duration : ''}" placeholder="e.g. 60" min="1" style="width:100px" />
+      </div>
+      <div class="tpop-row" style="align-items:flex-start">
+        <span class="tpop-label" style="padding-top:6px">Notes</span>
+        <textarea class="tpop-field-input" id="evtNotesInput" placeholder="Optional notes…" rows="3" style="resize:vertical;min-height:60px">${isEdit && event.notes ? esc(event.notes) : ''}</textarea>
+      </div>
+    </div>
+    <div class="task-popup-actions">
+      ${isEdit ? `<button class="btn-delete" id="evtDeleteBtn">Delete</button>` : ''}
+      <button class="btn-cancel" id="evtCancelBtn">${isEdit ? 'Cancel' : 'Cancel'}</button>
+      <button class="btn-add-confirm" id="evtSaveBtn">${isEdit ? 'Save' : 'Add Event'}</button>
+    </div>
+  `;
+
+  overlay.style.display = 'flex';
+  setTimeout(() => popup.querySelector('#evtTitleInput')?.focus(), 50);
+
+  popup.querySelector('#evtFormClose').addEventListener('click', closeEventPopup);
+  popup.querySelector('#evtCancelBtn').addEventListener('click', () => {
+    if (isEdit) _renderEventView(event);
+    else closeEventPopup();
+  });
+
+  if (isEdit) {
+    popup.querySelector('#evtDeleteBtn').addEventListener('click', () => {
+      const snapshot = [...getEvents()];
+      setEvents(getEvents().filter(e => e.id !== event.id));
+      persistEvents();
+      closeEventPopup();
+      showUndoToast(`"${event.title}" deleted`, () => {
+        setEvents(snapshot);
+        persistEvents();
+        _refreshAll();
+      });
+      _refreshAll();
+    });
+  }
+
+  popup.querySelector('#evtSaveBtn').addEventListener('click', () => {
+    const title = popup.querySelector('#evtTitleInput').value.trim();
+    if (!title) return;
+    const date     = popup.querySelector('#evtDateInput').value || null;
+    const time     = popup.querySelector('#evtTimeInput').value || null;
+    const duration = parseInt(popup.querySelector('#evtDurationInput').value) || null;
+    const notes    = popup.querySelector('#evtNotesInput').value.trim() || null;
+
+    if (isEdit) {
+      event.title    = title;
+      event.date     = date;
+      event.time     = time;
+      event.duration = duration;
+      event.notes    = notes;
+      persistEvents();
+      _renderEventView(event);
+    } else {
+      const newEvent = { id: uid(), title, date, time, duration, notes, createdAt: Date.now() };
+      getEvents().push(newEvent);
+      persistEvents();
+      closeEventPopup();
+    }
+    _refreshAll();
+  });
+
+  popup.querySelector('#evtTitleInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') popup.querySelector('#evtSaveBtn').click();
+    if (e.key === 'Escape') closeEventPopup();
   });
 }

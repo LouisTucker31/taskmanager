@@ -4,6 +4,7 @@ const KEYS = {
   tagColors: 'gdak_tag_colors',
   theme:     'gdak_theme',
   page:      'gdak_page',
+  events:    'gdak_events',
 };
 
 export function loadTasks() {
@@ -53,4 +54,15 @@ export function loadPage() {
 
 export function savePage(page) {
   localStorage.setItem(KEYS.page, page);
+}
+
+export function loadEvents() {
+  try {
+    const raw = localStorage.getItem(KEYS.events);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function saveEvents(events) {
+  localStorage.setItem(KEYS.events, JSON.stringify(events));
 }

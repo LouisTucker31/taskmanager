@@ -1,4 +1,4 @@
-import { initTasks, initExpanded, initTagColors } from './modules/state.js';
+import { initTasks, initExpanded, initTagColors, initEvents } from './modules/state.js';
 import { loadTheme, saveTheme, loadPage, savePage } from './modules/storage.js';
 import { renderTasks, initTasksPage } from './pages/tasks.js';
 import { renderBoard, initBoardPage } from './pages/board.js';
@@ -42,6 +42,7 @@ export function switchPage(page) {
 initTasks();
 initExpanded();
 initTagColors();
+initEvents();
 
 applyTheme(loadTheme() === 'dark');
 

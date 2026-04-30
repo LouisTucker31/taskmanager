@@ -1,4 +1,4 @@
-import { loadTasks, saveTasks, loadExpanded, saveExpanded, loadTagColors, saveTagColors } from './storage.js';
+import { loadTasks, saveTasks, loadExpanded, saveExpanded, loadTagColors, saveTagColors, loadEvents, saveEvents } from './storage.js';
 import { PRIORITY_ORDER, TAG_COLORS, TAG_COLORS_DARK } from './constants.js';
 
 // ---- Tasks ----
@@ -103,6 +103,22 @@ export function toggleSelectionId(taskId) {
     selectedIds.add(taskId);
   }
 }
+
+// ---- Events ----
+
+let events = [];
+
+export function getEvents() { return events; }
+export function setEvents(e) { events = e; }
+export function persistEvents() { saveEvents(events); }
+export function initEvents() { events = loadEvents(); }
+
+// ---- Tasks page tab ----
+
+let activeTasksTab = 'tasks'; // 'tasks' | 'events'
+
+export function getActiveTasksTab() { return activeTasksTab; }
+export function setActiveTasksTab(t) { activeTasksTab = t; }
 
 // ---- Tag colors ----
 

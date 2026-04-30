@@ -5,11 +5,13 @@ import {
   getFilteredTasks, getSearchQuery, setSearchQuery,
   getActiveSort, setActiveSort,
   getGroupBy, setGroupBy,
+  getActiveTasksTab, setActiveTasksTab,
+  getEvents, setEvents, persistEvents,
   isSelectionMode, getSelectedIds,
   enterSelectionMode, clearSelectionMode, toggleSelectionId,
   tagPillStyle, pruneTagColors,
 } from '../modules/state.js';
-import { formatDate, uid, parseTags, stripTags, normaliseTags } from '../modules/utils.js';
+import { formatDate, uid, parseTags, stripTags, normaliseTags, dateToStr } from '../modules/utils.js';
 import { showUndoToast } from '../components/toast.js';
 import {
   closeAllInlineDropdowns,
@@ -18,6 +20,7 @@ import {
   openDotMenu,
   positionDropdown,
 } from '../components/dropdown.js';
+import { openAddEventModal, openEventPopup } from '../components/modal.js';
 function switchPage(page) {
   document.dispatchEvent(new CustomEvent('app:switchPage', { detail: page }));
 }
@@ -328,6 +331,110 @@ function _sortTasks(list) {
     if (valA > valB) return s.dir === 'asc' ? 1 : -1;
     return 0;
   });
+}
+
+// ---- Events list ----
+
+export function renderEvents() {
+  const container = document.getElementById('eventsListContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const events = getEvents();
+  const todayStr = dateToStr(new Date());
+
+  // Sort: upcoming first (by date), then past, then no date
+  const withDate = [...events].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date));
+  const noDate   = events.filter(e => !e.date);
+
+  const upcoming = withDate.filter(e => e.date >= todayStr);
+  const past     = withDate.filter(e => e.date < todayStr);
+
+  if (events.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'events-empty';
+    empty.innerHTML = `
+      <svg viewBox="0 0 48 48" fill="none"><rect x="4" y="8" width="40" height="36" rx="4" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="14" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="34" y1="4" x2="34" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="20" x2="44" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+      <div class="events-empty-title">No events yet</div>
+      <div class="events-empty-sub">Click Add Event or click a day in the Calendar to create one.</div>
+    `;
+    container.appendChild(empty);
+    return;
+  }
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function _buildEventRow(ev) {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.dataset.id = ev.id;
+
+    const isPast = ev.date && ev.date < todayStr;
+
+    let dateLabel = '—';
+    if (ev.date) {
+      const [y, m, d] = ev.date.split('-').map(Number);
+      dateLabel = `${d} ${MONTHS[m-1]} ${y}`;
+    }
+    const timeLabel = ev.time ? ev.time.slice(0,5) : '—';
+    const durationLabel = ev.duration ? `${ev.duration} min` : '—';
+
+    row.innerHTML = `
+      <div class="event-row-dot ${isPast ? 'past' : ''}"></div>
+      <div class="event-row-main">
+        <span class="event-row-title ${isPast ? 'event-past' : ''}">${esc(ev.title)}</span>
+      </div>
+      <div class="event-row-date">${dateLabel}</div>
+      <div class="event-row-time">${timeLabel}</div>
+      <div class="event-row-duration">${durationLabel}</div>
+      <div class="event-row-actions">
+        <button class="three-dot-btn event-dot-btn" aria-label="Event options">
+          <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="13" r="1.2"/></svg>
+        </button>
+      </div>
+    `;
+
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.event-dot-btn')) return;
+      openEventPopup(ev);
+    });
+
+    row.querySelector('.event-dot-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const snapshot = [...getEvents()];
+      setEvents(getEvents().filter(x => x.id !== ev.id));
+      persistEvents();
+      renderEvents();
+      import('../pages/calendar.js').then(m => m.renderCalendar());
+      showUndoToast(`"${ev.title}" deleted`, () => {
+        setEvents(snapshot);
+        persistEvents();
+        renderEvents();
+        import('../pages/calendar.js').then(m => m.renderCalendar());
+      });
+    });
+
+    return row;
+  }
+
+  function _appendSection(label, evList, muted) {
+    if (evList.length === 0) return;
+    const heading = document.createElement('div');
+    heading.className = 'event-section-heading' + (muted ? ' muted' : '');
+    heading.textContent = label;
+    container.appendChild(heading);
+
+    const tableHead = document.createElement('div');
+    tableHead.className = 'event-table-header';
+    tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Duration</span><span></span>';
+    container.appendChild(tableHead);
+
+    evList.forEach(ev => container.appendChild(_buildEventRow(ev)));
+  }
+
+  _appendSection('Upcoming', upcoming, false);
+  _appendSection('Past', past, true);
+  if (noDate.length > 0) _appendSection('No Date', noDate, true);
 }
 
 // ---- Build task row ----
@@ -728,7 +835,27 @@ function _exitSelection() {
 
 // ---- Sort ----
 
+function _applyTab(tab) {
+  setActiveTasksTab(tab);
+  const isEvents = tab === 'events';
+  document.getElementById('listsContainer').style.display       = isEvents ? 'none' : '';
+  document.getElementById('eventsListContainer').style.display  = isEvents ? '' : 'none';
+  document.getElementById('tasksToolbar').style.display         = isEvents ? 'none' : '';
+  document.getElementById('eventsToolbar').style.display        = isEvents ? '' : 'none';
+  document.getElementById('tasksSearchRow').style.display       = isEvents ? 'none' : '';
+  document.querySelectorAll('.tasks-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if (isEvents) renderEvents();
+}
+
 export function initTasksPage() {
+  document.querySelectorAll('.tasks-tab').forEach(btn => {
+    btn.addEventListener('click', () => _applyTab(btn.dataset.tab));
+  });
+
+  document.getElementById('addEventBtn').addEventListener('click', () => {
+    openAddEventModal(dateToStr(new Date()));
+  });
+
   document.getElementById('searchInput').addEventListener('input', (e) => {
     setSearchQuery(e.target.value.trim().toLowerCase());
     document.getElementById('searchClear').style.display = getSearchQuery() ? 'block' : 'none';
