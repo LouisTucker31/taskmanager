@@ -214,22 +214,22 @@
 .event-table-header {
   display: grid;
   grid-template-columns: 1fr 140px 100px 110px 44px;
-  padding: 5px 16px; border-bottom: 1px solid var(--border-light);
+  padding: 5px 16px;
   font-size: 11px; font-weight: 600; color: var(--text-xmuted);
   letter-spacing: 0.3px; text-transform: uppercase;
-  background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
-  border: 1px solid var(--border-light); border-bottom: none;
+  border-bottom: 1px solid var(--border-light);
 }
+[data-theme="dark"] .event-table-header { border-color: #2e2e3e; }
 
 .event-row {
   display: grid;
   grid-template-columns: 1fr 140px 100px 110px 44px;
   align-items: center; padding: 0 16px;
-  border: 1px solid var(--border-light); border-top: none;
+  border-bottom: 1px solid var(--border-light);
   background: var(--surface); cursor: pointer;
   transition: background 0.1s; position: relative;
 }
-.event-row:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+.event-row:last-of-type { border-bottom: none; }
 .event-row:hover { background: #fafafa; }
 [data-theme="dark"] .event-row { border-color: #2e2e3e; background: var(--surface); }
 [data-theme="dark"] .event-table-header { border-color: #2e2e3e; background: var(--surface); }

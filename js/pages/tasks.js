@@ -20,6 +20,7 @@ import {
   openPriorityDropdown,
   openDotMenu,
   positionDropdown,
+  positionDropdownRight,
 } from '../components/dropdown.js';
 import { openAddEventModal, openEventPopup } from '../components/modal.js';
 function switchPage(page) {
@@ -390,16 +391,8 @@ export function renderEvents() {
   });
 
   if (allEvents.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'events-empty';
-    empty.innerHTML = `
-      <svg viewBox="0 0 48 48" fill="none"><rect x="4" y="8" width="40" height="36" rx="4" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="14" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="34" y1="4" x2="34" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="20" x2="44" y2="20" stroke="currentColor" stroke-width="2"/></svg>
-      <div class="events-empty-title">No events yet</div>
-      <div class="events-empty-sub">Click a day in the Calendar to add an event, or use the inline add below.</div>
-    `;
-    container.appendChild(empty);
-    // Still render an inline-add section for the current month even when empty
-    _renderMonthSection(container, _monthKey(todayStr), [], todayStr, _fmtDate, _fmtTime);
+    // No events yet — just show current month section with inline-add
+    _renderMonthSection(container, todayStr.slice(0, 7), [], todayStr, _fmtDate, _fmtTime);
     return;
   }
 
@@ -471,23 +464,83 @@ export function renderEvents() {
 
     row.querySelector('.event-dot-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      const snapshot = [...getEvents()];
-      setEvents(getEvents().filter(x => x.id !== ev.id));
-      persistEvents();
-      renderEvents();
-      import('../pages/calendar.js').then(m => m.renderCalendar());
-      showUndoToast(`"${ev.title || 'Event'}" deleted`, () => {
-        setEvents(snapshot);
+      closeAllInlineDropdowns();
+
+      const menu = document.createElement('div');
+      menu.className = 'dot-menu';
+      menu.style.minWidth = '150px';
+
+      // View in Calendar
+      if (ev.date) {
+        const viewCal = document.createElement('div');
+        viewCal.className = 'dot-menu-item';
+        viewCal.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2.5" width="11" height="10" rx="1.2" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="1" x2="4" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="1.5" y1="6" x2="12.5" y2="6" stroke="currentColor" stroke-width="1.2"/></svg> View in Calendar`;
+        viewCal.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllInlineDropdowns();
+          const [y, m] = ev.date.split('-').map(Number);
+          import('../pages/calendar.js').then(cal => cal.setCalendarMonth(y, m - 1));
+          document.dispatchEvent(new CustomEvent('app:switchPage', { detail: 'calendar' }));
+        });
+        menu.appendChild(viewCal);
+      }
+
+      // Edit
+      const edit = document.createElement('div');
+      edit.className = 'dot-menu-item';
+      edit.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11H3v-2l6.5-6.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Edit`;
+      edit.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllInlineDropdowns();
+        openEventPopup(ev);
+      });
+      menu.appendChild(edit);
+
+      // Duplicate
+      const dup = document.createElement('div');
+      dup.className = 'dot-menu-item';
+      dup.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.2" stroke="currentColor" stroke-width="1.2"/><path d="M2 10V2h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> Duplicate`;
+      dup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllInlineDropdowns();
+        const copy = { ...ev, id: uid(), title: ev.title + ' (copy)', createdAt: Date.now() };
+        getEvents().push(copy);
         persistEvents();
         renderEvents();
         import('../pages/calendar.js').then(m => m.renderCalendar());
       });
+      menu.appendChild(dup);
+
+      const divider = document.createElement('div');
+      divider.style.cssText = 'height:1px;background:var(--border-light);margin:4px 0;';
+      menu.appendChild(divider);
+
+      // Delete
+      const del = document.createElement('div');
+      del.className = 'dot-menu-item danger';
+      del.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M5 3.5V2h4v1.5M5.5 6v4.5M8.5 6v4.5M3 3.5l.5 8h7l.5-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Delete`;
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllInlineDropdowns();
+        const snapshot = [...getEvents()];
+        setEvents(getEvents().filter(x => x.id !== ev.id));
+        persistEvents();
+        renderEvents();
+        import('../pages/calendar.js').then(m => m.renderCalendar());
+        showUndoToast(`"${ev.title || 'Event'}" deleted`, () => {
+          setEvents(snapshot);
+          persistEvents();
+          renderEvents();
+          import('../pages/calendar.js').then(m => m.renderCalendar());
+        });
+      });
+      menu.appendChild(del);
+
+      positionDropdownRight(menu, row.querySelector('.event-dot-btn'));
     });
 
     return row;
   }
-
-  function _monthKey(ds) { return ds.slice(0, 7); }
 
   function _renderMonthSection(container, key, evList, todayStr, _fmtDate, _fmtTime) {
     let label;
