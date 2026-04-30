@@ -120,6 +120,16 @@ let activeTasksTab = 'tasks'; // 'tasks' | 'events'
 export function getActiveTasksTab() { return activeTasksTab; }
 export function setActiveTasksTab(t) { activeTasksTab = t; }
 
+// ---- Events sort / search ----
+
+let eventsSort = { type: 'date', dir: 'asc' }; // type: 'date'|'priority'|'tag'|'title'
+let eventsSearch = '';
+
+export function getEventsSort()   { return eventsSort; }
+export function setEventsSort(s)  { eventsSort = s; }
+export function getEventsSearch() { return eventsSearch; }
+export function setEventsSearch(q){ eventsSearch = q; }
+
 // ---- Tag colors ----
 
 let tagColorMap = {};

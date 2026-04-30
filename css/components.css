@@ -432,6 +432,20 @@ input[type="date"].tpop-field-input { cursor: pointer; }
 [data-theme="dark"] .sort-btn.active { background: #e8e8f0; color: #111118; }
 [data-theme="dark"] .filter-bar { border-color: #2e2e3e; }
 
+/* Events sort pill — identical to sort-btn */
+.evt-sort-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 4px 11px; min-height: 30px; border-radius: 999px;
+  font-size: 12px; font-weight: 500; color: var(--text-muted);
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.12s, color 0.12s;
+  display: flex; align-items: center; gap: 3px;
+}
+.evt-sort-btn:hover { background: var(--bg); color: var(--text); }
+.evt-sort-btn.active { background: var(--text); color: #fff; }
+.evt-sort-btn.active .sort-arrow { color: #fff; opacity: 1; }
+[data-theme="dark"] .evt-sort-btn.active { background: #e8e8f0; color: #111118; }
+
 /* ---- Search ---- */
 .search-bar-row { margin-top: -10px; margin-bottom: 16px; display: flex; }
 

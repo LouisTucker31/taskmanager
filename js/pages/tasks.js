@@ -7,6 +7,7 @@ import {
   getGroupBy, setGroupBy,
   getActiveTasksTab, setActiveTasksTab,
   getEvents, setEvents, persistEvents,
+  getEventsSort, setEventsSort, getEventsSearch, setEventsSearch,
   isSelectionMode, getSelectedIds,
   enterSelectionMode, clearSelectionMode, toggleSelectionId,
   tagPillStyle, pruneTagColors,
@@ -340,17 +341,55 @@ export function renderEvents() {
   if (!container) return;
   container.innerHTML = '';
 
-  const events = getEvents();
-  const todayStr = dateToStr(new Date());
+  const allEvents = getEvents();
+  const todayStr  = dateToStr(new Date());
+  const q         = getEventsSearch().toLowerCase();
+  const sort      = getEventsSort();
 
-  // Sort: upcoming first (by date), then past, then no date
-  const withDate = [...events].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date));
-  const noDate   = events.filter(e => !e.date);
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  const upcoming = withDate.filter(e => e.date >= todayStr);
-  const past     = withDate.filter(e => e.date < todayStr);
+  function _fmtDate(ds) {
+    if (!ds) return '—';
+    const [y, m, d] = ds.split('-').map(Number);
+    return `${d} ${MONTHS[m-1]} ${y}`;
+  }
 
-  if (events.length === 0) {
+  function _fmtTime(ev) {
+    if (ev.allDay) return 'All day';
+    if (ev.startTime) return ev.startTime.slice(0,5) + (ev.endTime ? ' – ' + ev.endTime.slice(0,5) : '');
+    return '—';
+  }
+
+  // Search filter
+  let filtered = q ? allEvents.filter(ev => {
+    if ((ev.title || '').toLowerCase().includes(q)) return true;
+    if ((ev.tags || []).some(t => t.toLowerCase().includes(q))) return true;
+    if ((ev.guests || []).some(g => g.toLowerCase().includes(q))) return true;
+    if (ev.date && ev.date.includes(q)) return true;
+    if (ev.notes && ev.notes.toLowerCase().includes(q)) return true;
+    return false;
+  }) : [...allEvents];
+
+  // Sort
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (sort.type === 'title') {
+      va = (a.title || '').toLowerCase();
+      vb = (b.title || '').toLowerCase();
+    } else if (sort.type === 'tag') {
+      va = (a.tags && a.tags[0] || 'zzz').toLowerCase();
+      vb = (b.tags && b.tags[0] || 'zzz').toLowerCase();
+    } else {
+      // default: date asc — upcoming first, no-date last
+      va = a.date || '9999-99-99';
+      vb = b.date || '9999-99-99';
+    }
+    if (va < vb) return sort.dir === 'asc' ? -1 : 1;
+    if (va > vb) return sort.dir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  if (allEvents.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'events-empty';
     empty.innerHTML = `
@@ -362,18 +401,12 @@ export function renderEvents() {
     return;
   }
 
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  function _fmtDate(dateStr) {
-    if (!dateStr) return '—';
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return `${d} ${MONTHS[m-1]} ${y}`;
-  }
-
-  function _fmtTime(ev) {
-    if (ev.allDay) return 'All day';
-    if (ev.startTime) return ev.startTime.slice(0,5) + (ev.endTime ? ' – ' + ev.endTime.slice(0,5) : '');
-    return '—';
+  if (filtered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'events-empty';
+    empty.innerHTML = `<div class="events-empty-title">No events match your search.</div>`;
+    container.appendChild(empty);
+    return;
   }
 
   function _buildEventRow(ev) {
@@ -381,11 +414,11 @@ export function renderEvents() {
     row.className = 'event-row';
     row.dataset.id = ev.id;
 
-    const isPast = ev.date && ev.date < todayStr;
+    const isPast   = ev.date && ev.date < todayStr;
     const dateLabel = _fmtDate(ev.date);
     const endLabel  = ev.endDate && ev.endDate !== ev.date ? ` – ${_fmtDate(ev.endDate)}` : '';
     const timeLabel = _fmtTime(ev);
-    const tags = ev.tags || [];
+    const tags   = ev.tags   || [];
     const guests = ev.guests || [];
 
     row.innerHTML = `
@@ -416,7 +449,7 @@ export function renderEvents() {
       persistEvents();
       renderEvents();
       import('../pages/calendar.js').then(m => m.renderCalendar());
-      showUndoToast(`"${ev.title}" deleted`, () => {
+      showUndoToast(`"${ev.title || 'Event'}" deleted`, () => {
         setEvents(snapshot);
         persistEvents();
         renderEvents();
@@ -427,24 +460,12 @@ export function renderEvents() {
     return row;
   }
 
-  function _appendSection(label, evList, muted) {
-    if (evList.length === 0) return;
-    const heading = document.createElement('div');
-    heading.className = 'event-section-heading' + (muted ? ' muted' : '');
-    heading.textContent = label;
-    container.appendChild(heading);
+  const tableHead = document.createElement('div');
+  tableHead.className = 'event-table-header';
+  tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Guests</span><span></span>';
+  container.appendChild(tableHead);
 
-    const tableHead = document.createElement('div');
-    tableHead.className = 'event-table-header';
-    tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Guests</span><span></span>';
-    container.appendChild(tableHead);
-
-    evList.forEach(ev => container.appendChild(_buildEventRow(ev)));
-  }
-
-  _appendSection('Upcoming', upcoming, false);
-  _appendSection('Past', past, true);
-  if (noDate.length > 0) _appendSection('No Date', noDate, true);
+  filtered.forEach(ev => container.appendChild(_buildEventRow(ev)));
 }
 
 // ---- Build task row ----
@@ -853,6 +874,7 @@ function _applyTab(tab) {
   document.getElementById('tasksToolbar').style.display         = isEvents ? 'none' : '';
   document.getElementById('eventsToolbar').style.display        = isEvents ? '' : 'none';
   document.getElementById('tasksSearchRow').style.display       = isEvents ? 'none' : '';
+  document.getElementById('eventsSearchRow').style.display      = isEvents ? '' : 'none';
   document.querySelectorAll('.tasks-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   if (isEvents) renderEvents();
 }
@@ -864,6 +886,44 @@ export function initTasksPage() {
 
   document.getElementById('addEventBtn').addEventListener('click', () => {
     openAddEventModal(dateToStr(new Date()));
+  });
+
+  // Events search
+  document.getElementById('eventsSearchInput').addEventListener('input', (e) => {
+    setEventsSearch(e.target.value.trim());
+    document.getElementById('eventsSearchClear').style.display = getEventsSearch() ? 'block' : 'none';
+    renderEvents();
+  });
+  document.getElementById('eventsSearchClear').addEventListener('click', () => {
+    setEventsSearch('');
+    document.getElementById('eventsSearchInput').value = '';
+    document.getElementById('eventsSearchClear').style.display = 'none';
+    renderEvents();
+  });
+
+  // Events sort buttons
+  document.querySelectorAll('.evt-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.sort;
+      const current = getEventsSort();
+      if (current.type === type && type !== 'date') {
+        setEventsSort({ type, dir: current.dir === 'asc' ? 'desc' : 'asc' });
+      } else {
+        setEventsSort({ type, dir: 'asc' });
+      }
+      document.querySelectorAll('.evt-sort-btn').forEach(b => {
+        b.classList.remove('active');
+        const arrow = b.querySelector('.sort-arrow');
+        if (arrow) { arrow.style.transform = 'rotate(0deg)'; arrow.style.opacity = '0.6'; }
+      });
+      btn.classList.add('active');
+      const arrow = btn.querySelector('.sort-arrow');
+      if (arrow) {
+        arrow.style.opacity = '1';
+        arrow.style.transform = getEventsSort().dir === 'desc' ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+      renderEvents();
+    });
   });
 
   document.getElementById('searchInput').addEventListener('input', (e) => {
