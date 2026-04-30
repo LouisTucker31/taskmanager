@@ -340,7 +340,6 @@ export function renderEvents() {
   const container = document.getElementById('eventsListContainer');
   if (!container) return;
   container.innerHTML = '';
-  console.log('[renderEvents] events:', getEvents().length, getEvents());
 
   const allEvents = getEvents();
   const todayStr  = dateToStr(new Date());

@@ -190,7 +190,7 @@
 
 /* ---- Events list ---- */
 .events-list-container {
-  flex: 1 1 0; overflow-y: auto;
+  display: block;
 }
 
 .events-empty {
