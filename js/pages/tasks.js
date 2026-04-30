@@ -346,12 +346,13 @@ export function renderEvents() {
   const q         = getEventsSearch().toLowerCase();
   const sort      = getEventsSort();
 
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTH_NAMES_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   function _fmtDate(ds) {
     if (!ds) return '—';
     const [y, m, d] = ds.split('-').map(Number);
-    return `${d} ${MONTHS[m-1]} ${y}`;
+    return `${d} ${MONTHS_SHORT[m-1]} ${y}`;
   }
 
   function _fmtTime(ev) {
@@ -370,17 +371,16 @@ export function renderEvents() {
     return false;
   }) : [...allEvents];
 
-  // Sort
+  // Sort within each group
   filtered.sort((a, b) => {
     let va, vb;
     if (sort.type === 'title') {
       va = (a.title || '').toLowerCase();
       vb = (b.title || '').toLowerCase();
     } else if (sort.type === 'tag') {
-      va = (a.tags && a.tags[0] || 'zzz').toLowerCase();
-      vb = (b.tags && b.tags[0] || 'zzz').toLowerCase();
+      va = ((a.tags && a.tags[0]) || 'zzz').toLowerCase();
+      vb = ((b.tags && b.tags[0]) || 'zzz').toLowerCase();
     } else {
-      // default: date asc — upcoming first, no-date last
       va = a.date || '9999-99-99';
       vb = b.date || '9999-99-99';
     }
@@ -395,18 +395,45 @@ export function renderEvents() {
     empty.innerHTML = `
       <svg viewBox="0 0 48 48" fill="none"><rect x="4" y="8" width="40" height="36" rx="4" stroke="currentColor" stroke-width="2"/><line x1="14" y1="4" x2="14" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="34" y1="4" x2="34" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="20" x2="44" y2="20" stroke="currentColor" stroke-width="2"/></svg>
       <div class="events-empty-title">No events yet</div>
-      <div class="events-empty-sub">Click Add Event or click a day in the Calendar to create one.</div>
+      <div class="events-empty-sub">Click a day in the Calendar to add an event, or use the inline add below.</div>
     `;
     container.appendChild(empty);
+    // Still render an inline-add section for the current month even when empty
+    _renderMonthSection(container, _monthKey(todayStr), [], todayStr, _fmtDate, _fmtTime);
     return;
   }
 
   if (filtered.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'events-empty';
-    empty.innerHTML = `<div class="events-empty-title">No events match your search.</div>`;
+    empty.innerHTML = `<div class="events-empty-title" style="padding-top:40px">No events match your search.</div>`;
     container.appendChild(empty);
     return;
+  }
+
+  // Group by YYYY-MM
+  const groups = {}; // { 'YYYY-MM': [ev, ...] }
+  const noDate = [];
+  filtered.forEach(ev => {
+    if (!ev.date) { noDate.push(ev); return; }
+    const key = ev.date.slice(0, 7); // 'YYYY-MM'
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(ev);
+  });
+
+  const sortedKeys = Object.keys(groups).sort();
+  sortedKeys.forEach(key => {
+    _renderMonthSection(container, key, groups[key], todayStr, _fmtDate, _fmtTime);
+  });
+
+  if (noDate.length > 0) {
+    _renderMonthSection(container, '__nodate__', noDate, todayStr, _fmtDate, _fmtTime);
+  }
+
+  // Always show current month section for inline-add if not already shown
+  const currentMonthKey = todayStr.slice(0, 7);
+  if (!groups[currentMonthKey]) {
+    _renderMonthSection(container, currentMonthKey, [], todayStr, _fmtDate, _fmtTime);
   }
 
   function _buildEventRow(ev) {
@@ -414,7 +441,7 @@ export function renderEvents() {
     row.className = 'event-row';
     row.dataset.id = ev.id;
 
-    const isPast   = ev.date && ev.date < todayStr;
+    const isPast    = ev.date && ev.date < todayStr;
     const dateLabel = _fmtDate(ev.date);
     const endLabel  = ev.endDate && ev.endDate !== ev.date ? ` – ${_fmtDate(ev.endDate)}` : '';
     const timeLabel = _fmtTime(ev);
@@ -460,12 +487,97 @@ export function renderEvents() {
     return row;
   }
 
-  const tableHead = document.createElement('div');
-  tableHead.className = 'event-table-header';
-  tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Guests</span><span></span>';
-  container.appendChild(tableHead);
+  function _monthKey(ds) { return ds.slice(0, 7); }
 
-  filtered.forEach(ev => container.appendChild(_buildEventRow(ev)));
+  function _renderMonthSection(container, key, evList, todayStr, _fmtDate, _fmtTime) {
+    let label;
+    if (key === '__nodate__') {
+      label = 'No Date';
+    } else {
+      const [y, m] = key.split('-').map(Number);
+      label = `${MONTH_NAMES_FULL[m - 1]} ${y}`;
+    }
+
+    const sectionKey = 'evt-month-' + key;
+    const isOpen = getExpanded()[sectionKey] !== false; // default open
+
+    const section = document.createElement('div');
+    section.className = 'section';
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <div class="section-toggle ${isOpen ? 'open' : ''}">
+        <svg viewBox="0 0 8 12" fill="none"><path d="M2 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="section-name-badge">
+        <span class="section-month-label">${label}</span>
+      </div>
+      <span class="section-count">${evList.length}</span>
+    `;
+    header.querySelector('.section-toggle').addEventListener('click', () => {
+      getExpanded()[sectionKey] = !getExpanded()[sectionKey];
+      persistExpanded();
+      renderEvents();
+    });
+    section.appendChild(header);
+
+    if (isOpen) {
+      const body = document.createElement('div');
+      body.className = 'section-body';
+
+      // Table header
+      const tableHead = document.createElement('div');
+      tableHead.className = 'event-table-header';
+      tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Guests</span><span></span>';
+      body.appendChild(tableHead);
+
+      evList.forEach(ev => body.appendChild(_buildEventRow(ev)));
+
+      // Inline add row
+      const addRow = document.createElement('div');
+      addRow.className = 'inline-add-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'inline-add-input';
+      input.placeholder = evList.length === 0 ? 'Type an event title and press Enter…' : 'Add another event…';
+      input.autocomplete = 'off';
+
+      function confirmAdd() {
+        const title = input.value.trim();
+        if (!title) return;
+        // Default date: first of the month (or today for current/nodate)
+        let defaultDate = todayStr;
+        if (key !== '__nodate__') {
+          const [y, m] = key.split('-').map(Number);
+          const firstOfMonth = `${y}-${String(m).padStart(2,'0')}-01`;
+          defaultDate = firstOfMonth > todayStr ? firstOfMonth : todayStr.slice(0,7) === key ? todayStr : firstOfMonth;
+        }
+        const newEvent = {
+          id: uid(), title, date: key === '__nodate__' ? null : defaultDate,
+          endDate: null, allDay: true, startTime: null, endTime: null,
+          tags: [], guests: [], notes: null, createdAt: Date.now(),
+        };
+        getEvents().push(newEvent);
+        persistEvents();
+        input.value = '';
+        renderEvents();
+        import('../pages/calendar.js').then(m => m.renderCalendar());
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmAdd();
+        if (e.key === 'Escape') input.blur();
+      });
+      input.addEventListener('blur', confirmAdd);
+      addRow.appendChild(input);
+      body.appendChild(addRow);
+
+      section.appendChild(body);
+    }
+
+    container.appendChild(section);
+  }
 }
 
 // ---- Build task row ----
@@ -882,10 +994,6 @@ function _applyTab(tab) {
 export function initTasksPage() {
   document.querySelectorAll('.tasks-tab').forEach(btn => {
     btn.addEventListener('click', () => _applyTab(btn.dataset.tab));
-  });
-
-  document.getElementById('addEventBtn').addEventListener('click', () => {
-    openAddEventModal(dateToStr(new Date()));
   });
 
   // Events search
