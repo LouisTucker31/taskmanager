@@ -23,7 +23,6 @@ function getRecurringOccurrences(task, rangeStart, rangeEnd) {
   const taskEnd = task.endDate ? new Date(task.endDate + 'T00:00:00') : null;
   const exceptions = new Set(task.exceptions || []);
 
-  // advance past range start without exceeding end
   while (cur < start) {
     if (task.recurrence === 'daily')   cur.setDate(cur.getDate() + 1);
     else if (task.recurrence === 'weekly')  cur.setDate(cur.getDate() + 7);
@@ -57,98 +56,149 @@ export function renderCalendar() {
   const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
   const todayStr  = dateToStr(calToday);
   const totalCells = Math.ceil((startDow + daysInMonth) / 7) * 7;
+  const numRows = totalCells / 7;
 
-  // Build date range for the full grid (including prev/next month padding cells)
   const gridStart = dateToStr(new Date(calYear, calMonth, 1 - startDow));
   const gridEnd   = dateToStr(new Date(calYear, calMonth, daysInMonth + (totalCells - startDow - daysInMonth)));
 
-  const tasksByDate = {};
-
-  function _addToDate(ds, entry) {
-    if (ds < gridStart || ds > gridEnd) return;
-    if (!tasksByDate[ds]) tasksByDate[ds] = [];
-    tasksByDate[ds].push(entry);
-  }
-
-  // Add events to the date map
-  getEvents().forEach(ev => {
-    if (!ev.date) return;
-    if (ev.endDate && ev.endDate > ev.date) {
-      const [sy, sm, sd] = ev.date.split('-').map(Number);
-      let cur = new Date(sy, sm - 1, sd);
-      const last = new Date(ev.endDate + 'T00:00:00');
-      while (cur <= last) {
-        _addToDate(dateToStr(cur), { ...ev, _isEvent: true });
-        cur.setDate(cur.getDate() + 1);
-      }
-    } else {
-      _addToDate(ev.date, { ...ev, _isEvent: true });
-    }
-  });
-
-  getTasks().filter(t => t.status !== 'complete' && t.status !== 'canceled').forEach(t => {
-    if (!t.due) return;
-    if (t.recurrence) {
-      // Virtual occurrences — show on every recurrence date in the visible grid
-      getRecurringOccurrences(t, gridStart, gridEnd).forEach(ds => {
-        _addToDate(ds, { ...t, _virtualDate: ds });
-      });
-    } else if (t.endDate && t.endDate > t.due) {
-      // Multi-day task — show chip on every day from due to endDate
-      const [sy, sm, sd] = t.due.split('-').map(Number);
-      let cur = new Date(sy, sm - 1, sd);
-      const last = new Date(t.endDate + 'T00:00:00');
-      while (cur <= last) {
-        _addToDate(dateToStr(cur), t);
-        cur.setDate(cur.getDate() + 1);
-      }
-    } else {
-      _addToDate(t.due, t);
-    }
-  });
-
+  // Map cell index → dateStr
+  const cellDates = [];
   for (let i = 0; i < totalCells; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'cal-cell';
-
-    let day, dateStr, isCurrentMonth = true;
-
+    let day, dateStr;
     if (i < startDow) {
       day = daysInPrevMonth - startDow + i + 1;
       const m = calMonth === 0 ? 11 : calMonth - 1;
       const y = calMonth === 0 ? calYear - 1 : calYear;
       dateStr = dateToStr(new Date(y, m, day));
-      isCurrentMonth = false;
     } else if (i >= startDow + daysInMonth) {
       day = i - startDow - daysInMonth + 1;
       const m = calMonth === 11 ? 0 : calMonth + 1;
       const y = calMonth === 11 ? calYear + 1 : calYear;
       dateStr = dateToStr(new Date(y, m, day));
-      isCurrentMonth = false;
     } else {
       day = i - startDow + 1;
       dateStr = dateToStr(new Date(calYear, calMonth, day));
     }
+    cellDates.push({ day, dateStr, isCurrentMonth: i >= startDow && i < startDow + daysInMonth });
+  }
+
+  // dateStr → cell index
+  const dateToCell = {};
+  cellDates.forEach(({ dateStr }, i) => { dateToCell[dateStr] = i; });
+
+  // ---- Separate multi-day spans from single-day entries ----
+
+  // spans: { id, label, startCell, endCell, isEvent, item, color }
+  const spans = [];
+  // singlesByDate: { dateStr: [item, ...] }
+  const singlesByDate = {};
+
+  function _addSingle(ds, entry) {
+    if (ds < gridStart || ds > gridEnd) return;
+    if (!singlesByDate[ds]) singlesByDate[ds] = [];
+    singlesByDate[ds].push(entry);
+  }
+
+  function _addSpan(startDs, endDs, item, isEvent) {
+    const clampStart = startDs < gridStart ? gridStart : startDs;
+    const clampEnd   = endDs   > gridEnd   ? gridEnd   : endDs;
+    if (clampStart > clampEnd) return;
+    // Split into per-row segments (a span can't visually cross week boundaries)
+    let cellA = dateToCell[clampStart];
+    const cellB = dateToCell[clampEnd];
+    if (cellA === undefined || cellB === undefined) return;
+    while (cellA <= cellB) {
+      const rowEnd = Math.floor(cellA / 7) * 7 + 6;
+      const segEnd = Math.min(cellB, rowEnd);
+      spans.push({ startCell: cellA, endCell: segEnd, isEvent, item,
+        isSegStart: cellA === dateToCell[clampStart],
+        isSegEnd:   segEnd === cellB });
+      cellA = rowEnd + 1;
+    }
+  }
+
+  // Multi-day events → spans, single-day events → singles
+  getEvents().forEach(ev => {
+    if (!ev.date) return;
+    if (ev.endDate && ev.endDate > ev.date) {
+      _addSpan(ev.date, ev.endDate, { ...ev, _isEvent: true }, true);
+    } else {
+      _addSingle(ev.date, { ...ev, _isEvent: true });
+    }
+  });
+
+  // Tasks: multi-day (endDate) → spans, recurring → singles per occurrence, single-day → singles
+  getTasks().filter(t => t.status !== 'complete' && t.status !== 'canceled').forEach(t => {
+    if (!t.due) return;
+    if (t.recurrence) {
+      getRecurringOccurrences(t, gridStart, gridEnd).forEach(ds => {
+        _addSingle(ds, { ...t, _virtualDate: ds });
+      });
+    } else if (t.endDate && t.endDate > t.due) {
+      _addSpan(t.due, t.endDate, t, false);
+    } else {
+      _addSingle(t.due, t);
+    }
+  });
+
+  // ---- Assign vertical lanes per row for spans ----
+  // For each row, greedily assign a lane (0,1,2...) so spans don't overlap
+  const spanLanes = spans.map(() => -1);
+  for (let row = 0; row < numRows; row++) {
+    const rowStart = row * 7;
+    const rowEnd   = rowStart + 6;
+    const rowSpans = spans.map((s, i) => ({ ...s, i }))
+      .filter(s => s.startCell >= rowStart && s.startCell <= rowEnd);
+    const laneEnds = []; // laneEnds[lane] = last endCell used in that lane
+    rowSpans.forEach(s => {
+      let lane = laneEnds.findIndex(end => end < s.startCell);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(s.endCell); }
+      else laneEnds[lane] = s.endCell;
+      spanLanes[s.i] = lane;
+    });
+  }
+
+  // ---- Render cells ----
+  // Reserve top space per cell for span lanes (each lane = 22px, min 1 lane reserved)
+  // We compute max lanes used per row so cells can reserve that space
+  const lanesPerRow = Array(numRows).fill(0);
+  spans.forEach((s, i) => {
+    const row = Math.floor(s.startCell / 7);
+    lanesPerRow[row] = Math.max(lanesPerRow[row], (spanLanes[i] ?? 0) + 1);
+  });
+
+  const LANE_H = 22; // px per span lane
+  const DAY_NUM_H = 28; // px for day number area
+
+  for (let i = 0; i < totalCells; i++) {
+    const { day, dateStr, isCurrentMonth } = cellDates[i];
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    cell.dataset.dateStr = dateStr;
 
     if (!isCurrentMonth) cell.classList.add('cal-cell-muted');
     if (dateStr === todayStr) cell.classList.add('cal-cell-today');
+
+    const row = Math.floor(i / 7);
+    const reservedH = DAY_NUM_H + lanesPerRow[row] * LANE_H;
+    cell.style.paddingTop = `${reservedH}px`;
 
     const dayNum = document.createElement('div');
     dayNum.className = 'cal-day-num';
     dayNum.textContent = day;
     cell.appendChild(dayNum);
 
-    const cellTasks = tasksByDate[dateStr] || [];
-    cellTasks.slice(0, 3).forEach(t => _appendChip(cell, t));
+    const singles = singlesByDate[dateStr] || [];
+    singles.slice(0, 3).forEach(t => _appendChip(cell, t));
 
-    if (cellTasks.length > 3) {
+    if (singles.length > 3) {
       const more = document.createElement('div');
       more.className = 'cal-task-more';
-      more.textContent = `+${cellTasks.length - 3} more`;
+      more.textContent = `+${singles.length - 3} more`;
       more.addEventListener('click', (e) => {
         e.stopPropagation();
         more.remove();
-        cellTasks.slice(3).forEach(t => _appendChip(cell, t));
+        singles.slice(3).forEach(t => _appendChip(cell, t));
       });
       cell.appendChild(more);
     }
@@ -156,6 +206,66 @@ export function renderCalendar() {
     cell.addEventListener('click', () => openCalChoice(dateStr));
     grid.appendChild(cell);
   }
+
+  // ---- Render span bars as overlay inside grid ----
+  // The grid is position:relative; bars are absolute, positioned by %
+  spans.forEach((s, i) => {
+    const lane = spanLanes[i] ?? 0;
+    const row  = Math.floor(s.startCell / 7);
+    const col  = s.startCell % 7;
+    const spanCols = s.endCell - s.startCell + 1;
+
+    const bar = document.createElement('div');
+    bar.className = 'cal-span-bar' + (s.isEvent ? ' cal-span-event' : ' cal-span-task');
+    if (s.isSegStart) bar.classList.add('seg-start');
+    if (s.isSegEnd)   bar.classList.add('seg-end');
+
+    // Apply task tag colour for task spans
+    if (!s.isEvent) {
+      const t = s.item;
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      const palette = isDark ? TAG_COLORS_DARK : TAG_COLORS;
+      const idx = t.tags && t.tags.length > 0 ? getTagColorIndex(t.tags[0]) : null;
+      if (idx !== null) {
+        const c = palette[idx % palette.length];
+        bar.style.background = c.bg;
+        bar.style.color = c.text;
+      }
+    }
+
+    // Position: left/width as % of grid width, top as px within the row
+    const pct = (v) => `${(v / 7) * 100}%`;
+    bar.style.left   = pct(col);
+    bar.style.width  = `calc(${pct(spanCols)} - 4px)`;
+    bar.style.top    = `calc(${(row / numRows) * 100}% + ${DAY_NUM_H + lane * LANE_H}px)`;
+    bar.style.height = `${LANE_H - 3}px`;
+
+    // Label only on segment start
+    if (s.isSegStart) {
+      const label = document.createElement('span');
+      label.className = 'cal-span-label';
+      if (s.isEvent) {
+        const timePrefix = (!s.item.allDay && s.item.startTime) ? s.item.startTime.slice(0,5) + ' ' : '';
+        label.textContent = timePrefix + (s.item.title || '');
+      } else {
+        label.textContent = s.item.name || '';
+      }
+      bar.appendChild(label);
+    }
+
+    bar.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (s.isEvent) {
+        const realEvent = getEvents().find(ev => ev.id === s.item.id) || s.item;
+        openEventPopup(realEvent);
+      } else {
+        const realTask = getTasks().find(r => r.id === s.item.id) || s.item;
+        openTaskPopup(realTask, s.item._virtualDate);
+      }
+    });
+
+    grid.appendChild(bar);
+  });
 }
 
 function _appendChip(cell, t) {
@@ -164,7 +274,7 @@ function _appendChip(cell, t) {
   if (t._isEvent) {
     chip.className = 'cal-task-chip cal-event-chip';
     const timePrefix = (!t.allDay && t.startTime) ? t.startTime.slice(0,5) + ' ' : '';
-    chip.textContent = timePrefix + t.title;
+    chip.textContent = timePrefix + (t.title || '');
     const realEvent = getEvents().find(e => e.id === t.id) || t;
     chip.addEventListener('click', (e) => { e.stopPropagation(); openEventPopup(realEvent); });
     cell.appendChild(chip);
@@ -175,7 +285,7 @@ function _appendChip(cell, t) {
   const isOverdue = dateForOverdue < dateToStr(calToday) && t.status !== 'complete' && t.status !== 'canceled';
   const isDark = document.body.getAttribute('data-theme') === 'dark';
   const palette = isDark ? TAG_COLORS_DARK : TAG_COLORS;
-  const idx = t.tags.length > 0 ? getTagColorIndex(t.tags[0]) : null;
+  const idx = t.tags && t.tags.length > 0 ? getTagColorIndex(t.tags[0]) : null;
   chip.className = `cal-task-chip status-${t.status}${isOverdue ? ' overdue' : ''}${t.recurrence ? ' recur' : ''}`;
   if (idx !== null) chip.style.cssText = `background:${palette[idx % palette.length].bg};color:${palette[idx % palette.length].text};`;
   chip.textContent = t.name;
