@@ -102,7 +102,7 @@ function _renderWeek() {
   headerTimeline.innerHTML = '';
   if (chart) chart.style.removeProperty('--gantt-cell-w');
 
-  const tasksWithDates = getTasks().filter(t => t.due);
+  const tasksWithDates = getTasks().filter(t => t.due && t.status !== 'complete' && t.status !== 'canceled');
 
   const today = todayStr();
   const MIN_WEEKS = 12;
@@ -274,7 +274,7 @@ function _renderFixedCols({ cols, headerClass, headerLabels, colOf, totalCols })
   });
 
   const year = new Date().getFullYear();
-  const allTasks = getTasks().filter(t => t.due);
+  const allTasks = getTasks().filter(t => t.due && t.status !== 'complete' && t.status !== 'canceled');
   const yearTasks = allTasks.filter(t => t.due.startsWith(String(year)));
 
   if (yearTasks.length === 0) { _emptyState(); return; }

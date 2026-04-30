@@ -7,7 +7,7 @@ export function renderBoard() {
   const container = document.getElementById('boardColumns');
   container.innerHTML = '';
 
-  const allTasks = getTasks();
+  const allTasks = getTasks().filter(t => t.status !== 'complete' && t.status !== 'canceled');
   const hasAny = allTasks.length > 0;
 
   const emptyState = document.getElementById('boardEmptyState');

@@ -71,7 +71,7 @@ export function renderCalendar() {
     tasksByDate[ds].push(entry);
   }
 
-  getTasks().forEach(t => {
+  getTasks().filter(t => t.status !== 'complete' && t.status !== 'canceled').forEach(t => {
     if (!t.due) return;
     if (t.recurrence) {
       // Virtual occurrences — show on every recurrence date in the visible grid
