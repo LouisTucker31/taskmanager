@@ -6,6 +6,7 @@ const ALL_STATUSES = [
   { key: 'canceled', label: 'Canceled', shortLabel: 'Canceled' },
 ];
 import { getTasks, persistTasks, getExpanded, persistExpanded, tagPillStyle } from '../modules/state.js';
+import { uid } from '../modules/utils.js';
 import { openRecurringDeleteDialog } from './modal.js';
 
 // ---- Positioning ----
@@ -261,13 +262,32 @@ export function openDotMenu(row, taskId, { onChanged, onViewCalendar, onEnterSel
 // ---- Recurrence helper ----
 
 export function advanceRecurringTask(task) {
+  // Mark this instance complete (historical record)
+  task.status = 'complete';
+
+  // Calculate next due date
   const [y, m, d] = task.due.split('-').map(Number);
-  let next = new Date(y, m - 1, d);
+  const next = new Date(y, m - 1, d);
   if (task.recurrence === 'daily')   next.setDate(next.getDate() + 1);
   if (task.recurrence === 'weekly')  next.setDate(next.getDate() + 7);
   if (task.recurrence === 'monthly') next.setMonth(next.getMonth() + 1);
-  task.due = `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`;
-  task.status = 'todo';
+  const nextDue = `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`;
+
+  // Spawn next occurrence as a fresh task
+  const nextTask = {
+    id: uid(),
+    name: task.name,
+    tags: [...task.tags],
+    priority: task.priority,
+    due: nextDue,
+    endDate: null,
+    recurrence: task.recurrence,
+    exceptions: [],
+    status: 'todo',
+    createdAt: Date.now(),
+  };
+  getTasks().push(nextTask);
+
   getExpanded()['todo'] = true;
   persistExpanded();
 }
