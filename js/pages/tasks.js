@@ -340,6 +340,7 @@ export function renderEvents() {
   const container = document.getElementById('eventsListContainer');
   if (!container) return;
   container.innerHTML = '';
+  console.log('[renderEvents] called, events:', getEvents().length, 'container display:', container.style.display);
 
   const allEvents = getEvents();
   const todayStr  = dateToStr(new Date());
@@ -869,12 +870,12 @@ function _exitSelection() {
 function _applyTab(tab) {
   setActiveTasksTab(tab);
   const isEvents = tab === 'events';
-  document.getElementById('listsContainer').style.display       = isEvents ? 'none' : '';
-  document.getElementById('eventsListContainer').style.display  = isEvents ? '' : 'none';
-  document.getElementById('tasksToolbar').style.display         = isEvents ? 'none' : '';
-  document.getElementById('eventsToolbar').style.display        = isEvents ? '' : 'none';
-  document.getElementById('tasksSearchRow').style.display       = isEvents ? 'none' : '';
-  document.getElementById('eventsSearchRow').style.display      = isEvents ? '' : 'none';
+  document.getElementById('listsContainer').style.display       = isEvents ? 'none' : 'block';
+  document.getElementById('eventsListContainer').style.display  = isEvents ? 'block' : 'none';
+  document.getElementById('tasksToolbar').style.display         = isEvents ? 'none' : 'flex';
+  document.getElementById('eventsToolbar').style.display        = isEvents ? 'flex' : 'none';
+  document.getElementById('tasksSearchRow').style.display       = isEvents ? 'none' : 'block';
+  document.getElementById('eventsSearchRow').style.display      = isEvents ? 'block' : 'none';
   document.querySelectorAll('.tasks-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   if (isEvents) renderEvents();
 }
@@ -1067,5 +1068,8 @@ export function initTasksPage() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isSelectionMode()) _exitSelection();
   });
+
+  // Apply the correct tab state on init (restores Events tab if it was active)
+  _applyTab(getActiveTasksTab());
 }
 
