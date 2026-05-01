@@ -69,9 +69,8 @@ export function loadEvents() {
       allDay:    ev.allDay    !== undefined ? ev.allDay : true,
       startTime: ev.startTime || ev.time  || null,
       endTime:   ev.endTime   || null,
-      tags:      Array.isArray(ev.tags)   ? ev.tags   : [],
-      guests:    Array.isArray(ev.guests) ? ev.guests : [],
       notes:     ev.notes     || null,
+      color:     ev.color     !== undefined ? ev.color : undefined,
       createdAt: ev.createdAt || 0,
     }));
   } catch { return []; }

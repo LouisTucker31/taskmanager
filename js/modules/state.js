@@ -140,6 +140,17 @@ export function setEventsSort(s)  { eventsSort = s; _ssSave('gdak_eventsSort', s
 export function getEventsSearch() { return eventsSearch; }
 export function setEventsSearch(q){ eventsSearch = q; }
 
+// ---- Row color cycling ----
+
+let _nextColorIdx = _ss('gdak_nextColorIdx', 0);
+
+export function nextColor() {
+  const idx = _nextColorIdx;
+  _nextColorIdx = (_nextColorIdx + 1) % 7;
+  _ssSave('gdak_nextColorIdx', _nextColorIdx);
+  return idx;
+}
+
 // ---- Tag colors ----
 
 let tagColorMap = {};
@@ -161,6 +172,11 @@ export function getTagColorIndex(tagName) {
   tagColorMap[tagName] = Object.keys(tagColorMap).length % TAG_COLORS.length;
   saveTagColors(tagColorMap);
   return tagColorMap[tagName];
+}
+
+export function setTagColorIndex(tagName, idx) {
+  tagColorMap[tagName] = idx;
+  saveTagColors(tagColorMap);
 }
 
 export function pruneTagColors() {

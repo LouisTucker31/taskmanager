@@ -45,3 +45,13 @@ export const MONTH_NAMES = [
 ];
 
 export const FLAG_SVG = `<svg class="flag-svg FLAG_CLASS" viewBox="0 0 12 14" fill="none" stroke="none"><line x1="2.5" y1="1" x2="2.5" y2="13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2.5 1.5 L10.5 1.5 L8.5 5 L10.5 8.5 L2.5 8.5 Z" fill="currentColor"/></svg>`;
+
+export const ROW_COLORS = [
+  '#6366f1', // indigo
+  '#ec4899', // pink
+  '#22c55e', // green
+  '#f97316', // orange
+  '#0ea5e9', // sky
+  '#eab308', // yellow
+  '#94a3b8', // slate
+];

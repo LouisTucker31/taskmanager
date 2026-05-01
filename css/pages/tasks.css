@@ -213,7 +213,7 @@
 
 .event-table-header {
   display: grid;
-  grid-template-columns: 1fr 180px 150px 130px 44px;
+  grid-template-columns: 1fr 200px 160px 44px;
   padding: 5px 16px;
   font-size: 11px; font-weight: 600; color: var(--text-xmuted);
   letter-spacing: 0.3px; text-transform: uppercase;
@@ -223,7 +223,7 @@
 
 .event-row {
   display: grid;
-  grid-template-columns: 1fr 180px 150px 130px 44px;
+  grid-template-columns: 1fr 200px 160px 44px;
   align-items: center; padding: 0 16px;
   border-bottom: 1px solid var(--border-light);
   background: var(--surface); cursor: pointer;
@@ -235,16 +235,9 @@
 [data-theme="dark"] .event-table-header { border-color: #2e2e3e; background: var(--surface); }
 [data-theme="dark"] .event-row:hover { background: #1e1e28; }
 
-.event-row-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent); flex-shrink: 0;
-  position: absolute; left: 6px;
-}
-.event-row-dot.past { background: var(--text-xmuted); }
-
 .event-row-main {
   display: flex; align-items: center; gap: 8px;
-  min-width: 0; padding: 10px 0 10px 16px;
+  min-width: 0; padding: 10px 0;
 }
 .event-row-title { font-size: 13.5px; font-weight: 400; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .event-past { color: var(--text-muted); }
@@ -348,6 +341,34 @@
 .cal-choice-btn-sub { font-size: 12px; color: var(--text-muted); font-family: 'Poppins', sans-serif; }
 [data-theme="dark"] .cal-choice-btn { background: #16161f; border-color: #2e2e3e; }
 [data-theme="dark"] .cal-choice-btn:hover { border-color: var(--accent); background: #1e1e28; }
+
+/* ---- Row color strip ---- */
+.task-row.has-row-color,
+.event-row.has-row-color {
+  border-left: 3px solid var(--row-color);
+  padding-left: 13px;
+}
+
+/* ---- Dot menu colour swatch picker ---- */
+.dot-menu-colour {
+  flex-direction: column; align-items: flex-start; gap: 4px; cursor: default;
+}
+.dot-menu-colour:hover { background: none !important; }
+.dot-menu-colour-label {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: var(--text);
+}
+.dot-menu-colour-label svg { width: 13px; height: 13px; flex-shrink: 0; }
+.dot-menu-swatches {
+  display: flex; gap: 6px; padding: 2px 0 2px 22px; flex-wrap: wrap;
+}
+.dot-menu-swatch {
+  width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: transform 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+}
+.dot-menu-swatch:hover { transform: scale(1.2); }
+.dot-menu-swatch.active { border-color: var(--text); }
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {

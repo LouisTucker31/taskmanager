@@ -1,5 +1,5 @@
 import { STATUSES, PRIORITY_META, FLAG_SVG } from '../modules/constants.js';
-import { getTasks, setTasks, persistTasks, getExpanded, persistExpanded, getEvents, setEvents, persistEvents, tagPillStyle } from '../modules/state.js';
+import { getTasks, setTasks, persistTasks, getExpanded, persistExpanded, getEvents, setEvents, persistEvents, nextColor } from '../modules/state.js';
 import { formatDate, esc, dueBtnLabel, parseTags, stripTags, uid, dateToStr, normaliseTags } from '../modules/utils.js';
 import { showUndoToast } from './toast.js';
 
@@ -449,6 +449,7 @@ function confirmAddFromCal() {
     priority: addCalPriority,
     due: addCalDue,
     status: addCalStatus,
+    color: 6,
     createdAt: Date.now(),
   };
   if (addCalEndDate && addCalDue && addCalEndDate > addCalDue) task.endDate = addCalEndDate;
@@ -612,8 +613,6 @@ function _renderEventView(event) {
     timeLabel = event.startTime.slice(0,5) + (event.endTime ? ` – ${event.endTime.slice(0,5)}` : '');
   }
 
-  const tagPills = (event.tags || []).map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`);
-
   popup.innerHTML = `
     <button class="task-popup-close" id="evtViewClose">&times;</button>
     <div class="evt-view-type">Event</div>
@@ -621,23 +620,12 @@ function _renderEventView(event) {
     <div class="tpop-meta">
       <div class="tpop-row"><span class="tpop-label">Date</span><span class="tpop-value">${dateLabel}${endLabel}</span></div>
       ${timeLabel ? `<div class="tpop-row"><span class="tpop-label">Time</span><span class="tpop-value">${timeLabel}</span></div>` : ''}
-      ${event.tags && event.tags.length ? `<div class="tpop-row"><span class="tpop-label">Tags</span><span class="tpop-value evt-tag-row" id="evtViewTags"></span></div>` : ''}
-      ${event.guests && event.guests.length ? `<div class="tpop-row evt-notes-row"><span class="tpop-label">Guests</span><span class="tpop-value evt-guest-list" id="evtViewGuests"></span></div>` : ''}
       ${event.notes ? `<div class="tpop-row evt-notes-row"><span class="tpop-label">Notes</span><span class="tpop-value evt-notes-val">${esc(event.notes)}</span></div>` : ''}
     </div>
     <div class="tpop-actions">
       <button class="tpop-edit-btn" id="evtViewEdit">Edit</button>
     </div>
   `;
-
-  if (event.tags && event.tags.length) {
-    const tagEl = popup.querySelector('#evtViewTags');
-    if (tagEl) tagEl.innerHTML = event.tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('');
-  }
-  if (event.guests && event.guests.length) {
-    const guestEl = popup.querySelector('#evtViewGuests');
-    if (guestEl) guestEl.innerHTML = event.guests.map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('');
-  }
 
   overlay.style.display = 'flex';
   popup.querySelector('#evtViewClose').addEventListener('click', closeEventPopup);
@@ -654,7 +642,6 @@ function _renderEventForm(event, prefillDate) {
   const allDay       = isEdit ? !!event.allDay : true;
   const startTimeVal = isEdit ? (event.startTime || '') : '';
   const endTimeVal   = isEdit ? (event.endTime || '') : '';
-  const tagsVal      = isEdit ? (event.tags || []).join(' ') : '';
   const notesVal     = isEdit ? (event.notes || '') : '';
 
   popup.innerHTML = `
@@ -686,20 +673,6 @@ function _renderEventForm(event, prefillDate) {
           <input type="time" class="tpop-field-input" id="evtEndTimeInput" value="${endTimeVal}" />
         </div>
       </div>
-      <div class="tpop-row">
-        <span class="tpop-label">Tags</span>
-        <div style="position:relative;flex:1">
-          <input type="text" class="tpop-field-input" id="evtTagInput" value="${esc(tagsVal)}" placeholder="tag1 tag2…" autocomplete="off" style="width:100%" />
-          <div class="tag-suggest-box" id="evtTagSuggest" style="display:none"></div>
-        </div>
-      </div>
-      <div class="tpop-row" style="align-items:flex-start">
-        <span class="tpop-label" style="padding-top:6px">Guests</span>
-        <div style="flex:1">
-          <div class="evt-guest-chips" id="evtGuestChips"></div>
-          <input type="text" class="tpop-field-input" id="evtGuestInput" placeholder="Add guest email or name, press Enter…" autocomplete="off" style="width:100%;margin-top:4px" />
-        </div>
-      </div>
       <div class="tpop-row" style="align-items:flex-start">
         <span class="tpop-label" style="padding-top:6px">Notes</span>
         <textarea class="tpop-field-input" id="evtNotesInput" placeholder="Optional notes…" rows="3" style="resize:vertical;min-height:60px;width:100%">${esc(notesVal)}</textarea>
@@ -721,97 +694,6 @@ function _renderEventForm(event, prefillDate) {
   allDayToggle.addEventListener('change', () => {
     timeRows.style.display = allDayToggle.checked ? 'none' : '';
   });
-
-  // Guest chip management
-  let guests = isEdit ? [...(event.guests || [])] : [];
-  const guestChips = popup.querySelector('#evtGuestChips');
-  const guestInput = popup.querySelector('#evtGuestInput');
-
-  function _renderGuestChips() {
-    guestChips.innerHTML = guests.map((g, i) =>
-      `<span class="event-guest-chip-edit">${esc(g)}<button class="evt-guest-remove" data-i="${i}">&times;</button></span>`
-    ).join('');
-    guestChips.querySelectorAll('.evt-guest-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        guests.splice(parseInt(btn.dataset.i), 1);
-        _renderGuestChips();
-      });
-    });
-  }
-  _renderGuestChips();
-
-  guestInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = guestInput.value.trim().replace(/,$/, '');
-      if (val && !guests.includes(val)) {
-        guests.push(val);
-        _renderGuestChips();
-      }
-      guestInput.value = '';
-    }
-  });
-  guestInput.addEventListener('blur', () => {
-    const val = guestInput.value.trim();
-    if (val && !guests.includes(val)) {
-      guests.push(val);
-      _renderGuestChips();
-      guestInput.value = '';
-    }
-  });
-
-  // Tag autocomplete (same pattern as task tags)
-  const tagInput   = popup.querySelector('#evtTagInput');
-  const suggestBox = popup.querySelector('#evtTagSuggest');
-  let suppressTagBlur = false;
-
-  function _getAllTags() {
-    const map = {};
-    getTasks().forEach(t => t.tags.forEach(tag => { map[tag] = true; }));
-    getEvents().forEach(ev => (ev.tags || []).forEach(tag => { map[tag] = true; }));
-    return Object.keys(map).sort();
-  }
-
-  function _getLastWord() {
-    const parts = tagInput.value.trimEnd().split(/\s+/);
-    return parts[parts.length - 1] || '';
-  }
-
-  function _renderTagSuggestions() {
-    const word = _getLastWord().replace(/^#+/, '').toLowerCase();
-    suggestBox.innerHTML = '';
-    if (!word) { suggestBox.style.display = 'none'; return; }
-    const allTags = {};
-    getTasks().forEach(t => t.tags.forEach(tag => { allTags[tag] = true; }));
-    getEvents().forEach(ev => (ev.tags || []).forEach(tag => { allTags[tag] = true; }));
-    const typed = normaliseTags(tagInput.value);
-    const matches = Object.keys(allTags).filter(t => t.startsWith(word) && !typed.includes(t));
-    if (matches.length === 0) { suggestBox.style.display = 'none'; return; }
-    matches.slice(0, 6).forEach(tag => {
-      const item = document.createElement('div');
-      item.className = 'tag-suggest-item';
-      const pill = document.createElement('span');
-      pill.className = 'tag-pill';
-      pill.style.cssText = tagPillStyle(tag);
-      pill.textContent = tag;
-      item.appendChild(pill);
-      item.addEventListener('mousedown', () => { suppressTagBlur = true; });
-      item.addEventListener('click', () => {
-        const parts = tagInput.value.trimEnd().split(/\s+/);
-        parts[parts.length - 1] = tag;
-        tagInput.value = parts.join(' ') + ' ';
-        suggestBox.style.display = 'none';
-        suppressTagBlur = false;
-        tagInput.focus();
-        _renderTagSuggestions();
-      });
-      suggestBox.appendChild(item);
-    });
-    suggestBox.style.display = 'block';
-  }
-
-  tagInput.addEventListener('input', _renderTagSuggestions);
-  tagInput.addEventListener('blur', () => { if (!suppressTagBlur) suggestBox.style.display = 'none'; });
 
   // Cancel / close
   popup.querySelector('#evtFormClose').addEventListener('click', closeEventPopup);
@@ -841,16 +723,11 @@ function _renderEventForm(event, prefillDate) {
     const title = popup.querySelector('#evtTitleInput').value.trim();
     if (!title) { popup.querySelector('#evtTitleInput').focus(); return; }
 
-    // Flush any pending guest input
-    const pendingGuest = guestInput.value.trim();
-    if (pendingGuest && !guests.includes(pendingGuest)) guests.push(pendingGuest);
-
     const date      = popup.querySelector('#evtDateInput').value || null;
     const endDate   = popup.querySelector('#evtEndDateInput').value || null;
     const isAllDay  = popup.querySelector('#evtAllDayToggle').checked;
     const startTime = isAllDay ? null : (popup.querySelector('#evtStartTimeInput').value || null);
     const endTime   = isAllDay ? null : (popup.querySelector('#evtEndTimeInput').value || null);
-    const tags      = normaliseTags(popup.querySelector('#evtTagInput').value);
     const notes     = popup.querySelector('#evtNotesInput').value.trim() || null;
 
     if (isEdit) {
@@ -860,8 +737,6 @@ function _renderEventForm(event, prefillDate) {
       event.allDay    = isAllDay;
       event.startTime = startTime;
       event.endTime   = endTime;
-      event.tags      = tags;
-      event.guests    = guests;
       event.notes     = notes;
       persistEvents();
       _renderEventView(event);
@@ -870,7 +745,7 @@ function _renderEventForm(event, prefillDate) {
         id: uid(), title, date,
         endDate: endDate && endDate !== date ? endDate : null,
         allDay: isAllDay, startTime, endTime,
-        tags, guests, notes, createdAt: Date.now(),
+        notes, color: 6, createdAt: Date.now(),
       };
       getEvents().push(newEvent);
       persistEvents();

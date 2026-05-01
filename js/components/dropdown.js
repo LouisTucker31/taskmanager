@@ -1,11 +1,11 @@
-import { STATUSES, PRIORITY_META, FLAG_SVG, DONE_STATUSES } from '../modules/constants.js';
+import { STATUSES, PRIORITY_META, FLAG_SVG, DONE_STATUSES, ROW_COLORS } from '../modules/constants.js';
 
 const ALL_STATUSES = [
   ...STATUSES,
   { key: 'complete', label: 'Complete', shortLabel: 'Complete' },
   { key: 'canceled', label: 'Canceled', shortLabel: 'Canceled' },
 ];
-import { getTasks, persistTasks, getExpanded, persistExpanded, tagPillStyle } from '../modules/state.js';
+import { getTasks, persistTasks, getExpanded, persistExpanded, tagPillStyle, setTagColorIndex } from '../modules/state.js';
 import { uid } from '../modules/utils.js';
 import { openRecurringDeleteDialog } from './modal.js';
 
@@ -175,6 +175,38 @@ export function openDotMenu(row, taskId, { onChanged, onViewCalendar, onEnterSel
     onRename?.();
   });
   menu.appendChild(rename);
+
+  // Colour picker
+  const colourItem = document.createElement('div');
+  colourItem.className = 'dot-menu-item dot-menu-colour';
+  const colourLabel = document.createElement('div');
+  colourLabel.className = 'dot-menu-colour-label';
+  colourLabel.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="6" r="1" fill="currentColor"/><circle cx="9" cy="6" r="1" fill="currentColor"/><circle cx="7" cy="9.5" r="1" fill="currentColor"/></svg> Colour`;
+  colourItem.appendChild(colourLabel);
+  const swatches = document.createElement('div');
+  swatches.className = 'dot-menu-swatches';
+  ROW_COLORS.forEach((hex, idx) => {
+    const s = document.createElement('span');
+    s.className = 'dot-menu-swatch' + (task && task.color === idx ? ' active' : '');
+    s.style.background = hex;
+    s.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = getTasks().find(t => t.id === taskId);
+      if (t) {
+        const prevColor = t.color;
+        t.color = idx;
+        // Sync tags that were in sync with the previous colour
+        t.tags.forEach(tag => setTagColorIndex(tag, idx));
+        persistTasks();
+        onChanged?.();
+      }
+      closeAllInlineDropdowns();
+    });
+    swatches.appendChild(s);
+  });
+  colourItem.appendChild(swatches);
+  colourItem.addEventListener('click', (e) => e.stopPropagation());
+  menu.appendChild(colourItem);
 
   if (task && task.due) {
     const viewCal = document.createElement('div');

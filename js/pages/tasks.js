@@ -1,4 +1,4 @@
-import { STATUSES, PRIORITY_META, PRIORITY_ORDER, FLAG_SVG, isDone, DONE_STATUSES } from '../modules/constants.js';
+import { STATUSES, PRIORITY_META, PRIORITY_ORDER, FLAG_SVG, isDone, DONE_STATUSES, ROW_COLORS } from '../modules/constants.js';
 import {
   getTasks, setTasks, persistTasks,
   getExpanded, persistExpanded,
@@ -10,7 +10,7 @@ import {
   getEventsSort, setEventsSort, getEventsSearch, setEventsSearch,
   isSelectionMode, getSelectedIds,
   enterSelectionMode, clearSelectionMode, toggleSelectionId,
-  tagPillStyle, pruneTagColors,
+  tagPillStyle, pruneTagColors, nextColor, setTagColorIndex,
 } from '../modules/state.js';
 import { formatDate, uid, parseTags, stripTags, normaliseTags, dateToStr, esc } from '../modules/utils.js';
 import { showUndoToast } from '../components/toast.js';
@@ -450,22 +450,22 @@ export function renderEvents() {
     const row = document.createElement('div');
     row.className = 'event-row';
     row.dataset.id = ev.id;
+    {
+      const colorIdx = (ev.color !== undefined && ev.color !== null) ? ev.color : 6;
+      row.style.setProperty('--row-color', ROW_COLORS[colorIdx % ROW_COLORS.length]);
+      row.classList.add('has-row-color');
+    }
 
     const isPast    = ev.date && ev.date < todayStr;
     const dateLabel = _fmtDateRange(ev.date, ev.endDate);
     const timeLabel = _fmtTime(ev);
-    const tags   = ev.tags   || [];
-    const guests = ev.guests || [];
 
     row.innerHTML = `
-      <div class="event-row-dot ${isPast ? 'past' : ''}"></div>
       <div class="event-row-main">
         <span class="event-row-title ${isPast ? 'event-past' : ''}">${esc(ev.title || '')}</span>
-        ${tags.length ? `<span class="event-row-tags">${tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('')}</span>` : ''}
       </div>
       <div class="event-row-date">${dateLabel}</div>
       <div class="event-row-time">${timeLabel}</div>
-      <div class="event-row-guests">${guests.length ? guests.slice(0,2).map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('') + (guests.length > 2 ? `<span class="event-guest-more">+${guests.length - 2}</span>` : '') : '<span style="color:var(--text-xmuted)">—</span>'}</div>
       <div class="event-row-actions">
         <button class="three-dot-btn event-dot-btn" aria-label="Event options">
           <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="13" r="1.2"/></svg>
@@ -527,6 +527,33 @@ export function renderEvents() {
       });
       menu.appendChild(rename);
 
+      // Colour picker
+      const colourItem = document.createElement('div');
+      colourItem.className = 'dot-menu-item dot-menu-colour';
+      const evtColourLabel = document.createElement('div');
+      evtColourLabel.className = 'dot-menu-colour-label';
+      evtColourLabel.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="6" r="1" fill="currentColor"/><circle cx="9" cy="6" r="1" fill="currentColor"/><circle cx="7" cy="9.5" r="1" fill="currentColor"/></svg> Colour`;
+      colourItem.appendChild(evtColourLabel);
+      const evtSwatches = document.createElement('div');
+      evtSwatches.className = 'dot-menu-swatches';
+      ROW_COLORS.forEach((hex, idx) => {
+        const s = document.createElement('span');
+        s.className = 'dot-menu-swatch' + (ev.color === idx ? ' active' : '');
+        s.style.background = hex;
+        s.addEventListener('click', (e2) => {
+          e2.stopPropagation();
+          ev.color = idx;
+          persistEvents();
+          renderEvents();
+          import('../pages/calendar.js').then(m => m.renderCalendar());
+          closeAllInlineDropdowns();
+        });
+        evtSwatches.appendChild(s);
+      });
+      colourItem.appendChild(evtSwatches);
+      colourItem.addEventListener('click', (e) => e.stopPropagation());
+      menu.appendChild(colourItem);
+
       // Edit (full popup)
       const edit = document.createElement('div');
       edit.className = 'dot-menu-item';
@@ -545,7 +572,7 @@ export function renderEvents() {
       dup.addEventListener('click', (e) => {
         e.stopPropagation();
         closeAllInlineDropdowns();
-        const copy = { ...ev, id: uid(), title: ev.title + ' (copy)', createdAt: Date.now() };
+        const copy = { ...ev, id: uid(), title: ev.title + ' (copy)', createdAt: Date.now(), color: 6 };
         getEvents().push(copy);
         persistEvents();
         renderEvents();
@@ -624,7 +651,7 @@ export function renderEvents() {
       // Table header
       const tableHead = document.createElement('div');
       tableHead.className = 'event-table-header';
-      tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span>Guests</span><span></span>';
+      tableHead.innerHTML = '<span>Title</span><span>Date</span><span>Time</span><span></span>';
       body.appendChild(tableHead);
 
       evList.forEach(ev => body.appendChild(_buildEventRow(ev)));
@@ -651,7 +678,7 @@ export function renderEvents() {
         const newEvent = {
           id: uid(), title, date: key === '__nodate__' ? null : defaultDate,
           endDate: null, allDay: true, startTime: null, endTime: null,
-          tags: [], guests: [], notes: null, createdAt: Date.now(),
+          tags: [], guests: [], notes: null, color: 6, createdAt: Date.now(),
         };
         getEvents().push(newEvent);
         persistEvents();
@@ -682,6 +709,10 @@ function buildTaskRow(task) {
   const row = document.createElement('div');
   row.className = 'task-row' + (isDone ? ' row-muted' : '');
   row.dataset.id = task.id;
+  if (task.color !== undefined && task.color !== null) {
+    row.style.setProperty('--row-color', ROW_COLORS[task.color % ROW_COLORS.length]);
+    row.classList.add('has-row-color');
+  }
 
   const nameCell = document.createElement('div');
   nameCell.className = 'task-name-cell';
@@ -1001,7 +1032,15 @@ function openTagEdit(cell, task) {
   function commit() {
     if (suppressBlur) return;
     suggestBox.style.display = 'none';
-    task.tags = normaliseTags(input.value);
+    const newTags = normaliseTags(input.value);
+    const oldTags = new Set(task.tags);
+    task.tags = newTags;
+    // Sync newly added tags to the task's current colour
+    if (task.color !== undefined && task.color !== null) {
+      newTags.forEach(tag => {
+        if (!oldTags.has(tag)) setTagColorIndex(tag, task.color);
+      });
+    }
     pruneTagColors();
     persistTasks();
     renderTasks();
@@ -1043,9 +1082,11 @@ function confirmInlineAdd(input, statusKey) {
     priority: 'none',
     due: null,
     status: statusKey || 'todo',
+    color: 6,
     createdAt: Date.now(),
   };
 
+  task.tags.forEach(tag => setTagColorIndex(tag, task.color));
   getTasks().push(task);
   persistTasks();
   input.value = '';
