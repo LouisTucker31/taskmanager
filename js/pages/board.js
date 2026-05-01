@@ -217,4 +217,8 @@ export function initBoardPage() {
       renderBoard();
     });
   });
+
+  // Sync active state from restored session
+  const restoredBoardGroup = getBoardGroupBy();
+  document.querySelectorAll('.board-group-btn').forEach(b => b.classList.toggle('active', b.dataset.group === restoredBoardGroup));
 }

@@ -27,19 +27,29 @@ export function initExpanded() {
   expandedSections = loadExpanded();
 }
 
+// ---- Session state helpers (survive refresh, reset on new open) ----
+
+function _ss(key, defaultVal) {
+  try { const v = sessionStorage.getItem(key); return v !== null ? JSON.parse(v) : defaultVal; }
+  catch { return defaultVal; }
+}
+function _ssSave(key, val) {
+  try { sessionStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
 // ---- Sort ----
 
-let activeSort = { type: 'created', dir: 'asc' };
+let activeSort = _ss('gdak_sort', { type: 'created', dir: 'asc' });
 
 export function getActiveSort() { return activeSort; }
-export function setActiveSort(s) { activeSort = s; }
+export function setActiveSort(s) { activeSort = s; _ssSave('gdak_sort', s); }
 
 // ---- Group by ----
 
-let activeGroupBy = 'status'; // 'status' | 'tag' | 'priority' | 'due'
+let activeGroupBy = _ss('gdak_groupBy', 'status');
 
 export function getGroupBy() { return activeGroupBy; }
-export function setGroupBy(g) { activeGroupBy = g; }
+export function setGroupBy(g) { activeGroupBy = g; _ssSave('gdak_groupBy', g); }
 
 export function getFilteredTasks(statusKey) {
   let list = tasks.filter(t => t.status === statusKey);
@@ -66,10 +76,10 @@ export function getFilteredTasks(statusKey) {
 
 // ---- Board group by ----
 
-let boardGroupBy = 'status'; // 'status' | 'tag' | 'priority' | 'due'
+let boardGroupBy = _ss('gdak_boardGroupBy', 'status');
 
 export function getBoardGroupBy() { return boardGroupBy; }
-export function setBoardGroupBy(g) { boardGroupBy = g; }
+export function setBoardGroupBy(g) { boardGroupBy = g; _ssSave('gdak_boardGroupBy', g); }
 
 // ---- Search ----
 
@@ -115,18 +125,18 @@ export function initEvents() { events = loadEvents(); }
 
 // ---- Tasks page tab ----
 
-let activeTasksTab = 'tasks'; // 'tasks' | 'events'
+let activeTasksTab = _ss('gdak_tasksTab', 'tasks');
 
 export function getActiveTasksTab() { return activeTasksTab; }
-export function setActiveTasksTab(t) { activeTasksTab = t; }
+export function setActiveTasksTab(t) { activeTasksTab = t; _ssSave('gdak_tasksTab', t); }
 
 // ---- Events sort / search ----
 
-let eventsSort = { type: 'date', dir: 'asc' }; // type: 'date'|'priority'|'tag'|'title'
+let eventsSort = _ss('gdak_eventsSort', { type: 'date', dir: 'asc' });
 let eventsSearch = '';
 
 export function getEventsSort()   { return eventsSort; }
-export function setEventsSort(s)  { eventsSort = s; }
+export function setEventsSort(s)  { eventsSort = s; _ssSave('gdak_eventsSort', s); }
 export function getEventsSearch() { return eventsSearch; }
 export function setEventsSearch(q){ eventsSearch = q; }
 

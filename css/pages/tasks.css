@@ -213,7 +213,7 @@
 
 .event-table-header {
   display: grid;
-  grid-template-columns: 1fr 140px 100px 110px 44px;
+  grid-template-columns: 1fr 180px 150px 130px 44px;
   padding: 5px 16px;
   font-size: 11px; font-weight: 600; color: var(--text-xmuted);
   letter-spacing: 0.3px; text-transform: uppercase;
@@ -223,7 +223,7 @@
 
 .event-row {
   display: grid;
-  grid-template-columns: 1fr 140px 100px 110px 44px;
+  grid-template-columns: 1fr 180px 150px 130px 44px;
   align-items: center; padding: 0 16px;
   border-bottom: 1px solid var(--border-light);
   background: var(--surface); cursor: pointer;
@@ -252,6 +252,7 @@
 .event-row-date, .event-row-time, .event-row-guests {
   font-size: 12px; color: var(--text-muted); font-family: 'DM Mono', monospace;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-right: 16px;
 }
 
 .event-row-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-left: 6px; flex-shrink: 0; }

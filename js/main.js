@@ -17,7 +17,10 @@ function applyTheme(dark) {
 
 // ---- Page navigation ----
 
-let currentPage = loadPage();
+// On refresh: restore last page. On fresh open (new tab/session): always start on tasks.
+const _isRefresh = sessionStorage.getItem('gdak_session') === '1';
+sessionStorage.setItem('gdak_session', '1');
+let currentPage = _isRefresh ? loadPage() : 'tasks';
 
 // Allow other modules to trigger navigation without circular imports
 document.addEventListener('app:switchPage', (e) => switchPage(e.detail));

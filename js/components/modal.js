@@ -581,6 +581,11 @@ export function openEventPopup(event) {
   document.getElementById('eventPopupOverlay').style.display = 'flex';
 }
 
+export function openEventEditPopup(event) {
+  _renderEventForm(event, null);
+  document.getElementById('eventPopupOverlay').style.display = 'flex';
+}
+
 export function closeEventPopup() {
   document.getElementById('eventPopupOverlay').style.display = 'none';
 }

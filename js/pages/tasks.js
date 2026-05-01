@@ -22,7 +22,7 @@ import {
   positionDropdown,
   positionDropdownRight,
 } from '../components/dropdown.js';
-import { openAddEventModal, openEventPopup } from '../components/modal.js';
+import { openAddEventModal, openEventPopup, openEventEditPopup } from '../components/modal.js';
 function switchPage(page) {
   document.dispatchEvent(new CustomEvent('app:switchPage', { detail: page }));
 }
@@ -356,6 +356,23 @@ export function renderEvents() {
     return `${d} ${MONTHS_SHORT[m-1]} ${y}`;
   }
 
+  function _fmtDateRange(startDs, endDs) {
+    if (!startDs) return '—';
+    if (!endDs || endDs === startDs) return _fmtDate(startDs);
+    const [sy, sm, sd] = startDs.split('-').map(Number);
+    const [ey, em, ed] = endDs.split('-').map(Number);
+    if (sy === ey && sm === em) {
+      // Same month+year: "13–19 Apr 2026"
+      return `${sd}–${ed} ${MONTHS_SHORT[sm-1]} ${sy}`;
+    }
+    if (sy === ey) {
+      // Same year: "13 Apr – 19 May 2026"
+      return `${sd} ${MONTHS_SHORT[sm-1]} – ${ed} ${MONTHS_SHORT[em-1]} ${sy}`;
+    }
+    // Different years: full both sides
+    return `${_fmtDate(startDs)} – ${_fmtDate(endDs)}`;
+  }
+
   function _fmtTime(ev) {
     if (ev.allDay) return 'All day';
     if (ev.startTime) return ev.startTime.slice(0,5) + (ev.endTime ? ' – ' + ev.endTime.slice(0,5) : '');
@@ -435,8 +452,7 @@ export function renderEvents() {
     row.dataset.id = ev.id;
 
     const isPast    = ev.date && ev.date < todayStr;
-    const dateLabel = _fmtDate(ev.date);
-    const endLabel  = ev.endDate && ev.endDate !== ev.date ? ` – ${_fmtDate(ev.endDate)}` : '';
+    const dateLabel = _fmtDateRange(ev.date, ev.endDate);
     const timeLabel = _fmtTime(ev);
     const tags   = ev.tags   || [];
     const guests = ev.guests || [];
@@ -447,7 +463,7 @@ export function renderEvents() {
         <span class="event-row-title ${isPast ? 'event-past' : ''}">${esc(ev.title || '')}</span>
         ${tags.length ? `<span class="event-row-tags">${tags.map(t => `<span class="tag-pill" style="${tagPillStyle(t)}">${esc(t)}</span>`).join('')}</span>` : ''}
       </div>
-      <div class="event-row-date">${dateLabel}${endLabel}</div>
+      <div class="event-row-date">${dateLabel}</div>
       <div class="event-row-time">${timeLabel}</div>
       <div class="event-row-guests">${guests.length ? guests.slice(0,2).map(g => `<span class="event-guest-pill">${esc(g)}</span>`).join('') + (guests.length > 2 ? `<span class="event-guest-more">+${guests.length - 2}</span>` : '') : '<span style="color:var(--text-xmuted)">—</span>'}</div>
       <div class="event-row-actions">
@@ -457,10 +473,6 @@ export function renderEvents() {
       </div>
     `;
 
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.event-dot-btn')) return;
-      openEventPopup(ev);
-    });
 
     row.querySelector('.event-dot-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -522,7 +534,7 @@ export function renderEvents() {
       edit.addEventListener('click', (e) => {
         e.stopPropagation();
         closeAllInlineDropdowns();
-        openEventPopup(ev);
+        openEventEditPopup(ev);
       });
       menu.appendChild(edit);
 
@@ -1262,5 +1274,23 @@ export function initTasksPage() {
 
   // Apply the correct tab state on init (restores Events tab if it was active)
   _applyTab(getActiveTasksTab());
+
+  // Sync pill active states from restored session state
+  const restoredGroup = getGroupBy();
+  document.querySelectorAll('.group-btn').forEach(b => b.classList.toggle('active', b.dataset.group === restoredGroup));
+
+  const restoredSort = getActiveSort();
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    const isActive = restoredSort.type === 'created' ? b.dataset.sort === 'none' : b.dataset.sort === restoredSort.type;
+    b.classList.toggle('active', isActive);
+    const arrow = b.querySelector('.sort-arrow');
+    if (arrow && isActive && restoredSort.type !== 'created') {
+      arrow.style.opacity = '1';
+      arrow.style.transform = restoredSort.dir === 'desc' ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+  });
+
+  const restoredEvtSort = getEventsSort();
+  document.querySelectorAll('.evt-sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === restoredEvtSort.type));
 }
 
