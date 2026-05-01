@@ -204,8 +204,7 @@ export function renderCalendar() {
       more.textContent = `+${singles.length - 3} more`;
       more.addEventListener('click', (e) => {
         e.stopPropagation();
-        more.remove();
-        singles.slice(3).forEach(t => _appendChip(cell, t));
+        _openDayPopup(cell, dateStr, singles);
       });
       cell.appendChild(more);
     }
@@ -275,6 +274,74 @@ export function renderCalendar() {
 
     grid.appendChild(bar);
   });
+}
+
+function _openDayPopup(cell, dateStr, items) {
+  document.querySelector('.cal-day-popup')?.remove();
+
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = `${d} ${MONTHS[m-1]} ${y}`;
+
+  const popup = document.createElement('div');
+  popup.className = 'cal-day-popup';
+
+  const header = document.createElement('div');
+  header.className = 'cal-day-popup-header';
+  header.innerHTML = `<span class="cal-day-popup-date">${label}</span><button class="cal-day-popup-close">&times;</button>`;
+  popup.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'cal-day-popup-list';
+
+  items.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'cal-day-popup-item';
+
+    if (t._isEvent) {
+      const evColorIdx = (t.color !== undefined && t.color !== null) ? t.color : 6;
+      const evHex = ROW_COLORS[evColorIdx % ROW_COLORS.length];
+      item.style.borderLeftColor = evHex;
+      const timePrefix = (!t.allDay && t.startTime) ? `<span class="cal-day-popup-time">${t.startTime.slice(0,5)}</span>` : '';
+      item.innerHTML = `${timePrefix}<span class="cal-day-popup-title">${t.title || ''}</span>`;
+      const realEvent = getEvents().find(e => e.id === t.id) || t;
+      item.addEventListener('click', () => { popup.remove(); openEventPopup(realEvent); });
+    } else {
+      const hex = ROW_COLORS[getTaskColorIndex(t) % ROW_COLORS.length];
+      item.style.borderLeftColor = hexToRgba(hex, 0.6);
+      item.innerHTML = `<span class="cal-day-popup-title">${t.name || ''}</span>`;
+      const realTask = getTasks().find(r => r.id === t.id) || t;
+      item.addEventListener('click', () => { popup.remove(); openTaskPopup(realTask, t._virtualDate); });
+    }
+
+    list.appendChild(item);
+  });
+
+  popup.appendChild(list);
+
+  // Position anchored to the cell
+  document.body.appendChild(popup);
+  const cellRect = cell.getBoundingClientRect();
+  const popupW = 220;
+  const popupH = popup.offsetHeight;
+  let left = cellRect.left + window.scrollX;
+  let top  = cellRect.bottom + 4 + window.scrollY;
+
+  if (left + popupW > window.innerWidth - 8) left = window.innerWidth - popupW - 8;
+  if (top + popupH > window.innerHeight - 8) top = cellRect.top - popupH - 4 + window.scrollY;
+
+  popup.style.left = `${left}px`;
+  popup.style.top  = `${top}px`;
+
+  header.querySelector('.cal-day-popup-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    popup.remove();
+  });
+
+  const dismiss = (e) => {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', dismiss); }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss), 0);
 }
 
 function _appendChip(cell, t) {
