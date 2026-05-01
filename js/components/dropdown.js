@@ -5,7 +5,7 @@ const ALL_STATUSES = [
   { key: 'complete', label: 'Complete', shortLabel: 'Complete' },
   { key: 'canceled', label: 'Canceled', shortLabel: 'Canceled' },
 ];
-import { getTasks, persistTasks, getExpanded, persistExpanded, tagPillStyle, setTagColorIndex } from '../modules/state.js';
+import { getTasks, persistTasks, getExpanded, persistExpanded, tagPillStyle, setTagColorIndex, getTaskColorIndex, setTaskColor } from '../modules/state.js';
 import { uid } from '../modules/utils.js';
 import { openRecurringDeleteDialog } from './modal.js';
 
@@ -185,18 +185,16 @@ export function openDotMenu(row, taskId, { onChanged, onViewCalendar, onEnterSel
   colourItem.appendChild(colourLabel);
   const swatches = document.createElement('div');
   swatches.className = 'dot-menu-swatches';
+  const currentColorIdx = task ? getTaskColorIndex(task) : 6;
   ROW_COLORS.forEach((hex, idx) => {
     const s = document.createElement('span');
-    s.className = 'dot-menu-swatch' + (task && task.color === idx ? ' active' : '');
+    s.className = 'dot-menu-swatch' + (idx === currentColorIdx ? ' active' : '');
     s.style.background = hex;
     s.addEventListener('click', (e) => {
       e.stopPropagation();
       const t = getTasks().find(t => t.id === taskId);
       if (t) {
-        const prevColor = t.color;
-        t.color = idx;
-        // Sync tags that were in sync with the previous colour
-        t.tags.forEach(tag => setTagColorIndex(tag, idx));
+        setTaskColor(t, idx);
         persistTasks();
         onChanged?.();
       }

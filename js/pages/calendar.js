@@ -1,11 +1,18 @@
-import { MONTH_NAMES, TAG_COLORS, TAG_COLORS_DARK, ROW_COLORS } from '../modules/constants.js';
-import { getTasks, getTagColorIndex, getEvents } from '../modules/state.js';
+import { MONTH_NAMES, ROW_COLORS } from '../modules/constants.js';
+import { getTasks, getTagColorIndex, getEvents, getTaskColorIndex } from '../modules/state.js';
 import { dateToStr } from '../modules/utils.js';
 import { openTaskPopup, openCalChoice, openEventPopup } from '../components/modal.js';
 
 const calToday = new Date();
 let calYear  = calToday.getFullYear();
 let calMonth = calToday.getMonth();
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 export function setCalendarMonth(year, month) {
   calYear  = year;
@@ -220,22 +227,18 @@ export function renderCalendar() {
     if (s.isSegStart) bar.classList.add('seg-start');
     if (s.isSegEnd)   bar.classList.add('seg-end');
 
-    // Apply colour: row color overrides tag colour for tasks; events use row color if set
+    // Apply colour — events full opacity, tasks semi-transparent
     {
       const item = s.item;
-      if (item.color !== undefined && item.color !== null) {
-        const hex = ROW_COLORS[item.color % ROW_COLORS.length];
+      if (s.isEvent) {
+        const colorIdx = (item.color !== undefined && item.color !== null) ? item.color : 6;
+        const hex = ROW_COLORS[colorIdx % ROW_COLORS.length];
         bar.style.background = hex;
         bar.style.color = '#fff';
-      } else if (!s.isEvent) {
-        const isDark = document.body.getAttribute('data-theme') === 'dark';
-        const palette = isDark ? TAG_COLORS_DARK : TAG_COLORS;
-        const idx = item.tags && item.tags.length > 0 ? getTagColorIndex(item.tags[0]) : null;
-        if (idx !== null) {
-          const c = palette[idx % palette.length];
-          bar.style.background = c.bg;
-          bar.style.color = c.text;
-        }
+      } else {
+        const hex = ROW_COLORS[getTaskColorIndex(item) % ROW_COLORS.length];
+        bar.style.background = hexToRgba(hex, 0.25);
+        bar.style.color = hex;
       }
     }
 
@@ -281,10 +284,10 @@ function _appendChip(cell, t) {
     chip.className = 'cal-task-chip cal-event-chip';
     const timePrefix = (!t.allDay && t.startTime) ? t.startTime.slice(0,5) + ' ' : '';
     chip.textContent = timePrefix + (t.title || '');
-    if (t.color !== undefined && t.color !== null) {
-      chip.style.background = ROW_COLORS[t.color % ROW_COLORS.length];
-      chip.style.color = '#fff';
-    }
+    const evColorIdx = (t.color !== undefined && t.color !== null) ? t.color : 6;
+    const evHex = ROW_COLORS[evColorIdx % ROW_COLORS.length];
+    chip.style.background = evHex;
+    chip.style.color = '#fff';
     const realEvent = getEvents().find(e => e.id === t.id) || t;
     chip.addEventListener('click', (e) => { e.stopPropagation(); openEventPopup(realEvent); });
     cell.appendChild(chip);
@@ -294,14 +297,10 @@ function _appendChip(cell, t) {
   const dateForOverdue = t._virtualDate || t.due;
   const isOverdue = dateForOverdue < dateToStr(calToday) && t.status !== 'complete' && t.status !== 'canceled';
   chip.className = `cal-task-chip status-${t.status}${isOverdue ? ' overdue' : ''}${t.recurrence ? ' recur' : ''}`;
-  if (t.color !== undefined && t.color !== null) {
-    chip.style.background = ROW_COLORS[t.color % ROW_COLORS.length];
-    chip.style.color = '#fff';
-  } else {
-    const isDark = document.body.getAttribute('data-theme') === 'dark';
-    const palette = isDark ? TAG_COLORS_DARK : TAG_COLORS;
-    const idx = t.tags && t.tags.length > 0 ? getTagColorIndex(t.tags[0]) : null;
-    if (idx !== null) chip.style.cssText = `background:${palette[idx % palette.length].bg};color:${palette[idx % palette.length].text};`;
+  {
+    const hex = ROW_COLORS[getTaskColorIndex(t) % ROW_COLORS.length];
+    chip.style.background = hexToRgba(hex, 0.25);
+    chip.style.color = hex;
   }
   chip.textContent = t.name;
   const realTask = getTasks().find(r => r.id === t.id) || t;

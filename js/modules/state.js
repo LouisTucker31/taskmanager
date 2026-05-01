@@ -179,6 +179,24 @@ export function setTagColorIndex(tagName, idx) {
   saveTagColors(tagColorMap);
 }
 
+// Returns the effective colour index for a task: first tag's colour, or 6 (grey) if no tags.
+export function getTaskColorIndex(task) {
+  if (task.tags && task.tags.length > 0) return getTagColorIndex(task.tags[0]);
+  return 6;
+}
+
+// Sets the colour for a task by updating its first tag's colour (or a virtual no-tag slot).
+// All tasks sharing the same first tag will instantly reflect the change.
+export function setTaskColor(task, idx) {
+  if (task.tags && task.tags.length > 0) {
+    task.tags.forEach(tag => setTagColorIndex(tag, idx));
+  } else {
+    // No tag — store on task directly so tagless tasks can have individual colours
+    task.color = idx;
+    saveTasks(tasks);
+  }
+}
+
 export function pruneTagColors() {
   const allTags = new Set(tasks.flatMap(t => t.tags));
   let changed = false;

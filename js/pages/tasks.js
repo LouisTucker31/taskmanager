@@ -10,7 +10,7 @@ import {
   getEventsSort, setEventsSort, getEventsSearch, setEventsSearch,
   isSelectionMode, getSelectedIds,
   enterSelectionMode, clearSelectionMode, toggleSelectionId,
-  tagPillStyle, pruneTagColors, nextColor, setTagColorIndex,
+  tagPillStyle, pruneTagColors, nextColor, setTagColorIndex, getTaskColorIndex, setTaskColor,
 } from '../modules/state.js';
 import { formatDate, uid, parseTags, stripTags, normaliseTags, dateToStr, esc } from '../modules/utils.js';
 import { showUndoToast } from '../components/toast.js';
@@ -709,8 +709,9 @@ function buildTaskRow(task) {
   const row = document.createElement('div');
   row.className = 'task-row' + (isDone ? ' row-muted' : '');
   row.dataset.id = task.id;
-  if (task.color !== undefined && task.color !== null) {
-    row.style.setProperty('--row-color', ROW_COLORS[task.color % ROW_COLORS.length]);
+  {
+    const colorIdx = getTaskColorIndex(task);
+    row.style.setProperty('--row-color', ROW_COLORS[colorIdx % ROW_COLORS.length]);
     row.classList.add('has-row-color');
   }
 
@@ -1036,11 +1037,10 @@ function openTagEdit(cell, task) {
     const oldTags = new Set(task.tags);
     task.tags = newTags;
     // Sync newly added tags to the task's current colour
-    if (task.color !== undefined && task.color !== null) {
-      newTags.forEach(tag => {
-        if (!oldTags.has(tag)) setTagColorIndex(tag, task.color);
-      });
-    }
+    const currentIdx = getTaskColorIndex(task);
+    newTags.forEach(tag => {
+      if (!oldTags.has(tag)) setTagColorIndex(tag, currentIdx);
+    });
     pruneTagColors();
     persistTasks();
     renderTasks();
@@ -1086,7 +1086,7 @@ function confirmInlineAdd(input, statusKey) {
     createdAt: Date.now(),
   };
 
-  task.tags.forEach(tag => setTagColorIndex(tag, task.color));
+  task.tags.forEach(tag => setTagColorIndex(tag, 6));
   getTasks().push(task);
   persistTasks();
   input.value = '';
