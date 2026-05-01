@@ -157,13 +157,24 @@ export function openRecurrenceSubmenu(anchor, taskId, onChanged) {
 
 // ---- Dot menu ----
 
-export function openDotMenu(row, taskId, { onChanged, onViewCalendar, onEnterSelect, onDelete }) {
+export function openDotMenu(row, taskId, { onChanged, onViewCalendar, onEnterSelect, onDelete, onRename }) {
   const menu = document.createElement('div');
   menu.className = 'dot-menu';
   menu.style.minWidth = '150px';
 
   const tasks = getTasks();
   const task = tasks.find(t => t.id === taskId);
+
+  // Rename
+  const rename = document.createElement('div');
+  rename.className = 'dot-menu-item';
+  rename.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11H3v-2l6.5-6.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Rename`;
+  rename.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllInlineDropdowns();
+    onRename?.();
+  });
+  menu.appendChild(rename);
 
   if (task && task.due) {
     const viewCal = document.createElement('div');

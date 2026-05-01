@@ -485,10 +485,40 @@ export function renderEvents() {
         menu.appendChild(viewCal);
       }
 
-      // Edit
+      // Rename
+      const rename = document.createElement('div');
+      rename.className = 'dot-menu-item';
+      rename.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11H3v-2l6.5-6.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Rename`;
+      rename.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllInlineDropdowns();
+        const titleSpan = row.querySelector('.event-row-title');
+        if (!titleSpan) return;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'task-name-edit';
+        input.value = ev.title || '';
+        titleSpan.replaceWith(input);
+        input.focus();
+        input.select();
+        function commitRename() {
+          const val = input.value.trim();
+          if (val) { ev.title = val; persistEvents(); }
+          renderEvents();
+          import('../pages/calendar.js').then(m => m.renderCalendar());
+        }
+        input.addEventListener('blur', commitRename);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+          if (e.key === 'Escape') renderEvents();
+        });
+      });
+      menu.appendChild(rename);
+
+      // Edit (full popup)
       const edit = document.createElement('div');
       edit.className = 'dot-menu-item';
-      edit.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L5 11H3v-2l6.5-6.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Edit`;
+      edit.innerHTML = `<svg viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2.5" width="11" height="10" rx="1.2" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="1" x2="4" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="1.5" y1="6" x2="12.5" y2="6" stroke="currentColor" stroke-width="1.2"/></svg> Edit`;
       edit.addEventListener('click', (e) => {
         e.stopPropagation();
         closeAllInlineDropdowns();
@@ -675,7 +705,6 @@ function buildTaskRow(task) {
   const nameText = document.createElement('span');
   nameText.className = 'task-name-text' + (isDone ? ' strikethrough' : '');
   nameText.textContent = task.name;
-  nameText.addEventListener('click', () => startNameEdit(nameText, task));
 
   nameCell.appendChild(checkbox);
   nameCell.appendChild(ringWrap);
@@ -780,15 +809,17 @@ function buildTaskRow(task) {
     e.stopPropagation();
     closeAllInlineDropdowns();
     openDotMenu(row, task.id, {
+      onRename: () => {
+        const span = row.querySelector('.task-name-text');
+        if (span) startNameEdit(span, task);
+      },
       onChanged: (action, id) => {
         if (action === 'duplicate') _duplicateTask(id);
         else renderTasks();
       },
       onViewCalendar: (due) => {
         const [y, m] = due.split('-').map(Number);
-        import('./calendar.js').then(cal => {
-          cal.setCalendarMonth(y, m - 1);
-        });
+        import('./calendar.js').then(cal => { cal.setCalendarMonth(y, m - 1); });
         switchPage('calendar');
       },
       onEnterSelect: (id) => {
